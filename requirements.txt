@@ -1,0 +1,20 @@
+# MAUDE-Dash dependencies
+#
+# Install with:
+#   pip install -r requirements.txt
+#
+# Core (required)
+duckdb>=0.10.0
+pandas>=1.5.0
+streamlit>=1.30.0
+plotly>=5.18.0
+wordcloud>=1.9.0
+openpyxl>=3.1.0
+
+# Statistics (recommended — enables Fisher's exact test and exact p-values;
+# the stats module falls back to closed-form approximations without it)
+scipy>=1.10.0
+
+# Optional niceties
+nltk>=3.8            # better narrative collocations (graceful fallback if absent)
+psutil>=5.9.0        # smarter auto memory-limit detection in maude_build.py
