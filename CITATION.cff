@@ -4,7 +4,8 @@ message: "If you use MaudeDash in research, please cite both the software and th
 type: software
 authors:
   - family-names: Porwal
-    given-names: Moksha
+    given-names: Mokshal
+    website: "https://mokshalmedia.com"
 repository-code: "https://github.com/mokshalstudios/MAUDE-DASH"
 url: "https://maudedash.com"
 abstract: >-
@@ -36,7 +37,7 @@ preferred-citation:
   title: "MaudeDash: an open analytic platform for the FDA MAUDE medical device adverse event database"
   authors:
     - family-names: Porwal
-      given-names: Moksha
+      given-names: Mokshal
   journal: "Surgical Neurology International"
   year: 2026
   doi: "10.25259/SNI_201_2026"
