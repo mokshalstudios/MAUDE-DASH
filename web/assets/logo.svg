@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="MaudeDash">
+  <title>MaudeDash</title>
+  <defs>
+    <linearGradient id="md-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#12507A"/>
+      <stop offset="1" stop-color="#072A42"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#md-bg)"/>
+  <!-- baseline -->
+  <path d="M11 47.5h42" stroke="#3E6D8E" stroke-width="1.5" stroke-linecap="round" opacity=".7"/>
+  <!-- surveillance series: quiet, then a step change -->
+  <path d="M12 41 L20 39.5 L26 40.5 L32 33 L38 34.5 L44 22 L52 19"
+        fill="none" stroke="#F1F7FB" stroke-width="3.4"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- detected signal -->
+  <circle cx="44" cy="22" r="6.6" fill="#12A594" stroke="#072A42" stroke-width="2.4"/>
+  <!-- harm ramp ticks -->
+  <rect x="12" y="52" width="9" height="3" rx="1.5" fill="#12A594" opacity=".9"/>
+  <rect x="24" y="52" width="9" height="3" rx="1.5" fill="#D9740B" opacity=".85"/>
+  <rect x="36" y="52" width="9" height="3" rx="1.5" fill="#C0392B" opacity=".85"/>
+</svg>

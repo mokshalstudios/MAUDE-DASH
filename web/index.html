@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MaudeDash — Open analytics for the FDA MAUDE medical device adverse event database</title>
+<meta name="description" content="MaudeDash is a free, open-access research tool for the U.S. FDA MAUDE database: 20.7 million medical device adverse event reports, with FDA 21 CFR 803.3 harm classification, Wilson confidence intervals, Bayesian and frequentist signal detection, and STROBE-ready methods output. Runs entirely in your browser.">
+<meta name="author" content="Moksha Porwal">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://maudedash.com/">
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<script src="assets/boot.js"></script>
+<link rel="stylesheet" href="assets/styles.css">
+<link rel="stylesheet" href="assets/site.css">
+<!--
+  Warm the query engine while the visitor reads this page. prefetch (not
+  preload) so it is fetched at low priority and does not compete with the
+  landing page itself, and so no console warning appears if the visitor never
+  opens the tool.
+-->
+<link rel="prefetch" as="fetch" href="vendor/duckdb/duckdb-eh.wasm" crossorigin>
+<link rel="prefetch" as="script" href="vendor/esm/duckdb__duckdb-wasm@1.29.0.mjs">
+<link rel="prefetch" as="fetch" href="data/summary.json">
+<link rel="prefetch" as="fetch" href="data/product_index.json">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://maudedash.com/">
+<meta property="og:title" content="MaudeDash — Open analytics for the FDA MAUDE database">
+<meta property="og:description" content="20.7 million FDA medical device adverse event reports, analysable in your browser. Free, open access, no login, no tracking.">
+<meta property="og:image" content="https://maudedash.com/assets/logo.svg">
+<meta name="twitter:card" content="summary">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "name": "MaudeDash",
+      "url": "https://maudedash.com/",
+      "applicationCategory": "Research and analysis software",
+      "operatingSystem": "Any modern web browser",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "license": "https://opensource.org/licenses/MIT",
+      "author": { "@type": "Person", "name": "Moksha Porwal" },
+      "description": "Open-access analytics platform for the U.S. FDA Manufacturer and User Facility Device Experience (MAUDE) medical device adverse event database.",
+      "isAccessibleForFree": true,
+      "codeRepository": "https://github.com/mokshalstudios/MAUDE-DASH"
+    },
+    {
+      "@type": "Dataset",
+      "name": "FDA MAUDE analytic extract",
+      "description": "Denormalised analytic extract of the U.S. FDA MAUDE database, one row per medical device report, with FDA 21 CFR 803.3 patient outcome classification.",
+      "creator": { "@type": "Organization", "name": "U.S. Food and Drug Administration" },
+      "isBasedOn": "https://www.fda.gov/medical-devices/mandatory-reporting-requirements-manufacturers-importers-and-device-user-facilities/manufacturer-and-user-facility-device-experience-database-maude",
+      "license": "https://www.usa.gov/government-works",
+      "temporalCoverage": "1991/2024"
+    }
+  ]
+}
+</script>
+</head>
+<body class="site">
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <a class="brand" href="./">
+    <img class="brand-logo" src="assets/logo.svg" alt="" width="34" height="34">
+    <div class="brand-text">
+      <div class="brand-name">Maude<span class="dash">Dash</span></div>
+      <div class="brand-tag">FDA MAUDE Analytics</div>
+    </div>
+  </a>
+  <nav class="site-nav" aria-label="Main">
+    <a href="#what">What it is</a>
+    <a href="#how">How it works</a>
+    <a href="methods.html">Methods</a>
+    <a href="#limits">Limitations</a>
+    <a href="#cite">Cite</a>
+    <a class="nav-cta" href="app.html">Open the tool</a>
+  </nav>
+  <button class="icon-btn nav-toggle" id="nav-toggle" aria-label="Menu" aria-expanded="false">☰</button>
+</header>
+
+<main id="main">
+
+  <!-- ============================ hero ============================ -->
+  <section class="hero">
+    <div class="wrap">
+      <p class="eyebrow">Open access · No login · Nothing leaves your browser</p>
+      <h1>Twenty million FDA medical device<br>adverse event reports, analysable<br>by anyone.</h1>
+      <p class="lede">
+        MaudeDash turns the U.S. FDA's Manufacturer and User Facility Device
+        Experience database — the national reporting system for medical devices
+        that injure or kill patients — into an instrument any clinician,
+        researcher, journalist or regulator can actually use. It is free, it
+        requires no account, and every calculation runs on your own computer.
+      </p>
+      <div class="hero-cta">
+        <a class="btn btn-lg" href="app.html">Open the tool</a>
+        <a class="btn btn-lg btn-secondary" href="methods.html">Read the methods</a>
+      </div>
+      <dl class="hero-stats" id="hero-stats">
+        <div><dt>Reports</dt><dd>20,746,963</dd></div>
+        <div><dt>Years</dt><dd>1991–2024</dd></div>
+        <div><dt>Product codes</dt><dd>3,763</dd></div>
+        <div><dt>Manufacturers</dt><dd>26,344</dd></div>
+      </dl>
+      <p class="hero-note">
+        Data current to <strong id="vintage-inline">2024-12-31</strong>.
+        Published in <em>Surgical Neurology International</em> —
+        <a href="https://pubmed.ncbi.nlm.nih.gov/42232423/" rel="noopener">PubMed 42232423</a>.
+      </p>
+    </div>
+  </section>
+
+  <!-- ========================== what it is ========================= -->
+  <section id="what" class="band">
+    <div class="wrap">
+      <h2>Why this exists</h2>
+      <div class="prose-lg">
+        <p>
+          When a medical device fails — a pump that over-delivers insulin, a
+          spinal screw that loosens, a monitor that misses an alarm —
+          manufacturers, hospitals and patients file a report with the FDA.
+          Those reports accumulate in MAUDE, a public database of more than
+          twenty million records. It is one of the few windows the public has
+          into how devices behave after approval.
+        </p>
+        <p>
+          In practice that window is nearly opaque. The FDA distributes MAUDE as
+          a set of raw pipe-delimited text files totalling tens of gigabytes,
+          split across several tables that must be joined correctly before any
+          question can be answered. The official web search interface returns
+          individual reports, not statistics. Researchers who want a rate, a
+          trend, or a confidence interval must first spend weeks building a
+          pipeline — and most of the published analyses that result are not
+          reproducible, because the cohort definition lives in a script nobody
+          else has.
+        </p>
+        <p>
+          MaudeDash removes that barrier. Define a cohort in a sidebar; get
+          harm rates with confidence intervals, subgroup forest plots, trend
+          tests, and disproportionality signal screening in seconds. Every
+          analysis ships with the exact filter that produced it and an
+          auto-generated methods paragraph, so the work is reproducible by
+          construction.
+        </p>
+      </div>
+
+      <div class="feature-grid">
+        <article class="feature">
+          <h3>Clinically meaningful outcomes</h3>
+          <p>Patient harm is classified using the FDA's own seven categories
+          under 21 CFR 803.3 — death, life-threatening, hospitalization,
+          disability, congenital anomaly, required intervention, other — not
+          just the coarse event type most tools stop at.</p>
+        </article>
+        <article class="feature">
+          <h3>Statistics that survive review</h3>
+          <p>Wilson score intervals, Cochran-Armitage and Mann-Kendall trend
+          tests, Fisher's exact, and dual frequentist and Bayesian signal
+          detection with false-discovery-rate control. Cross-validated against
+          SciPy on every function.</p>
+        </article>
+        <article class="feature">
+          <h3>Search by device, not by code</h3>
+          <p>MAUDE identifies devices by opaque three-letter codes. Type
+          “pedicle screw” or “infusion pump” and MaudeDash finds them, using the
+          device names manufacturers actually recorded in the reports.</p>
+        </article>
+        <article class="feature">
+          <h3>Reproducible by default</h3>
+          <p>Every cohort has a shareable URL, an exact SQL filter, and a
+          generated STROBE-style methods paragraph stating the data vintage —
+          so a reviewer can reproduce your number, not just read it.</p>
+        </article>
+        <article class="feature">
+          <h3>Honest about its limits</h3>
+          <p>MAUDE is passive surveillance with no denominator. The tool says so
+          on every rate it displays, flags unreliable strata, warns on partial
+          years, and refuses to present proportions as incidence.</p>
+        </article>
+        <article class="feature">
+          <h3>Free and open source</h3>
+          <p>MIT licensed, no account, no paywall, no usage limits. The full
+          build pipeline is published so anyone can rebuild the corpus from the
+          FDA's own files and verify the numbers independently.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================== how it works ======================= -->
+  <section id="how" class="band alt">
+    <div class="wrap">
+      <h2>How it works</h2>
+      <p class="section-lede">
+        MaudeDash has no application server. The site serves static files; your
+        browser does the analysis.
+      </p>
+
+      <ol class="steps">
+        <li>
+          <span class="step-n">1</span>
+          <h3>The FDA's raw files are rebuilt into an analytic table</h3>
+          <p>Roughly 40 GB of pipe-delimited text is parsed, multi-line
+          narratives are reassembled, and the tables are joined into one row per
+          report. Patient outcome codes are decoded into the seven statutory
+          harm categories.</p>
+        </li>
+        <li>
+          <span class="step-n">2</span>
+          <h3>That table is compressed 53-fold</h3>
+          <p>The working database is about 73 GB, most of it a full-text index
+          and duplicated columns no analysis reads. Stripping those leaves
+          1.4 GB of columnar Parquet — the complete corpus, narratives included,
+          at one fifty-third the size.</p>
+        </li>
+        <li>
+          <span class="step-n">3</span>
+          <h3>Your browser queries it directly</h3>
+          <p>A SQL engine compiled to WebAssembly runs inside the page and reads
+          only the byte ranges a query needs. Filtering 2018–2024 never touches
+          the other years; a query on product code never downloads the
+          narratives. A typical session transfers about 14 MB, not 1.4 GB.</p>
+        </li>
+      </ol>
+
+      <div class="note note-info wrap-narrow">
+        <span class="note-icon">🔒</span>
+        <div><strong>Nothing you do here is transmitted anywhere.</strong>
+        Your cohort definition, search terms and results exist only in your
+        browser tab. There is no account system, no database, no analytics
+        script and no cookie. See the
+        <a href="privacy.html">privacy statement</a>.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================== limits =========================== -->
+  <section id="limits" class="band">
+    <div class="wrap wrap-narrow">
+      <h2>What MAUDE can and cannot tell you</h2>
+      <p class="section-lede">
+        Stated plainly, because misreading this database is the most common
+        error in the literature that uses it.
+      </p>
+
+      <div class="note note-warn">
+        <span class="note-icon">⚠️</span>
+        <div>
+          <strong>MAUDE cannot produce a device failure rate.</strong> It records
+          reports, not exposures. Nobody knows how many of a given device were
+          implanted or used, so there is no denominator. A count of 500 reports
+          is not a risk, a rate, or a probability — and any figure here expressed
+          as a percentage is a share <em>of reports</em>, never a share of
+          patients or devices.
+        </div>
+      </div>
+
+      <ul class="limit-list">
+        <li><strong>Reporting is incomplete and uneven.</strong> Manufacturers
+        must report; hospitals under-report; patients rarely report at all.
+        Volume reflects who is watching as much as what is happening.</li>
+        <li><strong>Publicity distorts the signal.</strong> A recall, a lawsuit
+        or a news story reliably produces a spike in reports for a device whose
+        real-world behaviour has not changed.</li>
+        <li><strong>A report is not a finding of fault.</strong> A death report
+        records that a death occurred and a device was involved. It is not an
+        FDA determination that the device caused it.</li>
+        <li><strong>Disproportionality signals are hypotheses.</strong> They
+        indicate a code appears more often than expected in a cohort. That
+        warrants investigation, never a clinical or legal conclusion.</li>
+        <li><strong>Device-level data begins in 2015</strong> in this build.
+        Earlier reports exist but carry no product code, manufacturer, brand or
+        narrative, so the tool defaults to 2015 onward and says so.</li>
+        <li><strong>The most recent year is usually partial</strong>, because
+        the FDA files are captured mid-cycle. The tool flags this rather than
+        letting the drop-off read as a real decline.</li>
+      </ul>
+
+      <p class="fineprint">
+        MaudeDash is a research instrument. It is not medical advice, not a
+        substitute for clinical judgement, and not a regulatory determination.
+        See the <a href="terms.html">terms of use</a>.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============================ cite ============================ -->
+  <section id="cite" class="band alt">
+    <div class="wrap wrap-narrow">
+      <h2>Cite MaudeDash</h2>
+      <p class="section-lede">
+        If MaudeDash contributed to your work, please cite the paper and record
+        the data vintage — MAUDE is revised retroactively, so the same query run
+        later may return different counts.
+      </p>
+      <div class="cite" id="cite-text">Porwal M. MaudeDash: an open analytic platform for the FDA MAUDE medical device adverse event database. Surg Neurol Int. 2026. doi:10.25259/SNI_201_2026. Available from: https://maudedash.com (FDA data current to 2024-12-31).</div>
+      <button class="btn btn-secondary" id="copy-cite" style="width:auto;margin-top:10px">Copy citation</button>
+
+      <div class="link-cards">
+        <a class="link-card" href="https://pubmed.ncbi.nlm.nih.gov/42232423/" rel="noopener">
+          <h3>Peer-reviewed paper</h3><p>PubMed 42232423 · Surgical Neurology International</p></a>
+        <a class="link-card" href="https://github.com/mokshalstudios/MAUDE-DASH" rel="noopener">
+          <h3>Source code</h3><p>MIT licensed · full build pipeline and test suite</p></a>
+        <a class="link-card" href="https://www.fda.gov/medical-devices/mandatory-reporting-requirements-manufacturers-importers-and-device-user-facilities/manufacturer-and-user-facility-device-experience-database-maude" rel="noopener">
+          <h3>Primary data</h3><p>FDA MAUDE · U.S. public domain</p></a>
+      </div>
+    </div>
+  </section>
+
+  <section class="band cta-band">
+    <div class="wrap wrap-narrow" style="text-align:center">
+      <h2>Start with a device</h2>
+      <p class="section-lede">No sign-up. Nothing to install.</p>
+      <div class="chip-row">
+        <a class="chip" href="app.html?pc=KWP&y0=2018&y1=2024"><b>KWP</b> Pedicle screw systems</a>
+        <a class="chip" href="app.html?pc=FRN&y0=2018&y1=2024"><b>FRN</b> Infusion pumps</a>
+        <a class="chip" href="app.html?pc=QBJ&y0=2018&y1=2024"><b>QBJ</b> Continuous glucose monitors</a>
+        <a class="chip" href="app.html?pc=DZE&y0=2018&y1=2024"><b>DZE</b> Dental implants</a>
+      </div>
+      <p style="margin-top:22px"><a class="btn btn-lg" href="app.html">Open the tool</a></p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-grid">
+    <div>
+      <div class="brand-name" style="font-size:15px">Maude<span class="dash">Dash</span></div>
+      <p class="footer-note">
+        Open-access analytics for the U.S. FDA MAUDE medical device adverse
+        event database. MIT licensed.
+      </p>
+    </div>
+    <nav aria-label="Documentation">
+      <h4>Documentation</h4>
+      <a href="methods.html">Methods &amp; statistics</a>
+      <a href="app.html">The tool</a>
+      <a href="https://github.com/mokshalstudios/MAUDE-DASH" rel="noopener">Source code</a>
+    </nav>
+    <nav aria-label="Legal">
+      <h4>Legal</h4>
+      <a href="terms.html">Terms of use</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="accessibility.html">Accessibility</a>
+      <a href="/.well-known/security.txt">Security contact</a>
+    </nav>
+    <div>
+      <h4>Data</h4>
+      <p class="footer-note">
+        Source: U.S. FDA MAUDE, public domain.<br>
+        Vintage: <span id="vintage-footer">2024-12-31</span>.<br>
+        Retrieved and rebuilt independently.
+      </p>
+    </div>
+  </div>
+  <div class="wrap footer-legal">
+    <p>
+      <strong>MaudeDash is an independent research tool.</strong> It is not
+      affiliated with, endorsed by, sponsored by, or reviewed by the U.S. Food
+      and Drug Administration or any device manufacturer. Content is provided
+      for research and educational purposes only and is not medical advice, a
+      clinical recommendation, or a regulatory determination. MAUDE is a passive
+      surveillance system; figures derived from it describe reporting patterns
+      and cannot be interpreted as device failure rates, incidence, or evidence
+      of causation.
+    </p>
+    <p>© <span id="year">2026</span> Moksha Porwal · Released under the MIT License.</p>
+  </div>
+</footer>
+
+<script src="assets/site.js" defer></script>
+</body>
+</html>

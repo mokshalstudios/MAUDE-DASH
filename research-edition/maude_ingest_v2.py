@@ -146,6 +146,64 @@ def reassemble_foitext(in_path: str, out_path: str, expected_cols: int) -> int:
 # Pipe normaliser (general MAUDE text files except foitext)
 # ---------------------------------------------------------------------------
 
+_CSV_OPTS_CACHE: Optional[str] = None
+
+
+def csv_read_opts(con) -> str:
+    """read_csv() options for the FDA pipe files, tuned to the DuckDB in use.
+
+    `strict_mode` only exists from DuckDB 1.2 onward. Hardcoding it made every
+    read_csv call fail with "Invalid named parameter" on DuckDB 1.1.x — and
+    because the loader logged the error and returned 0 rather than raising, the
+    whole ingest completed "successfully" with no mdr, device, foi or patient
+    table at all. The option is probed once and included only if supported.
+
+    The rest:
+      all_varchar=true    FDA files mix types within a column across years;
+                          typing happens later, deliberately.
+      ignore_errors=true  a handful of malformed rows must not abort a 3 GB file.
+      null_padding=true   short rows are padded rather than rejected.
+      quote='' escape=''  the files are not quoted; treating " as a quote
+                          swallows narrative text containing inches marks.
+      max_line_size       reassembled narratives exceed the 2 MB default.
+      sample_size=-1      scan the whole file so column types are stable.
+    """
+    global _CSV_OPTS_CACHE
+    if _CSV_OPTS_CACHE is not None:
+        return _CSV_OPTS_CACHE
+
+    base = (
+        f"delim='{DELIM}', header=1, all_varchar=true, "
+        f"ignore_errors=true, null_padding=true, "
+        f"quote='', escape='', max_line_size=67108864, sample_size=-1"
+    )
+    supported = base
+    probe = None
+    try:
+        fd, probe = tempfile.mkstemp(suffix=".txt")
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(f"A{DELIM}B\n1{DELIM}2\n")
+        probe_sql = probe.replace("\\", "/")
+        try:
+            con.execute(
+                f"SELECT * FROM read_csv('{probe_sql}', {base}, strict_mode=false) LIMIT 1"
+            ).fetchall()
+            supported = base + ", strict_mode=false"
+        except Exception:
+            info("   i DuckDB build predates strict_mode; using compatible CSV options.")
+    except Exception:
+        pass
+    finally:
+        if probe:
+            try:
+                os.remove(probe)
+            except OSError:
+                pass
+
+    _CSV_OPTS_CACHE = supported
+    return supported
+
+
 def normalize_pipe(in_path: str) -> Optional[str]:
     """Read a pipe-delimited MAUDE file with Latin-1 decode, strip BOM,
     normalise to UTF-8, and pad/truncate rows to header column count.
@@ -245,11 +303,7 @@ def load_pipe_files(
         #   - null_padding=true     : fill short rows with NULLs.
         #   - sample_size=-1        : scan the whole file for type inference,
         #     so column types are stable across years.
-        read_opts = (
-            f"delim='{DELIM}', header=1, all_varchar=true, "
-            f"ignore_errors=true, strict_mode=false, null_padding=true, "
-            f"quote='', escape='', max_line_size=67108864, sample_size=-1"
-        )
+        read_opts = csv_read_opts(con)
 
         def _load_one(path: str) -> tuple[bool, str]:
             """Try to read one normalised temp file. Returns (ok, error_msg)."""
@@ -446,6 +500,10 @@ def load_problem_codes(
     if code_idx is not None:
         where_clause += f" AND col{code_idx} IS NOT NULL AND TRIM(col{code_idx}) <> ''"
 
+    # strict_mode exists only from DuckDB 1.2; csv_read_opts() probes for it.
+    strict_opt = (", strict_mode=false"
+                  if "strict_mode" in csv_read_opts(con) else "")
+
     try:
         con.execute(
             f"""
@@ -457,10 +515,10 @@ def load_problem_codes(
                 columns={{{src_col_spec}}},
                 ignore_errors=true,
                 null_padding=true,
-                strict_mode=false,
                 quote='',
                 escape='',
                 max_line_size=67108864
+                {strict_opt}
             )
             WHERE {where_clause};
             """

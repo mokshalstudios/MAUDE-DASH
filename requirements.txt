@@ -1,20 +1,27 @@
-# MAUDE-Dash dependencies
+# MaudeDash — Research Edition
 #
-# Install with:
-#   pip install -r requirements.txt
+# The web tier needs none of this: it is static files plus DuckDB-WASM.
 #
-# Core (required)
-duckdb>=0.10.0
-pandas>=1.5.0
-streamlit>=1.30.0
-plotly>=5.18.0
-wordcloud>=1.9.0
-openpyxl>=3.1.0
+# duckdb is floored at 1.2 because read_csv's strict_mode option does not exist
+# before it. The ingest now probes for the option and works on 1.1.x too, but
+# 1.2+ is the tested path and parses malformed FDA rows more tolerantly.
 
-# Statistics (recommended — enables Fisher's exact test and exact p-values;
-# the stats module falls back to closed-form approximations without it)
-scipy>=1.10.0
+duckdb>=1.2,<2
+streamlit>=1.40
+pandas>=2.0
+plotly>=5.20
+openpyxl>=3.1          # .xlsx export
 
-# Optional niceties
-nltk>=3.8            # better narrative collocations (graceful fallback if absent)
-psutil>=5.9.0        # smarter auto memory-limit detection in maude_build.py
+# Optional but recommended.
+#   scipy      — Fisher's exact test, and exact chi-square/normal tail
+#                probabilities. maude_stats falls back to its own pure-Python
+#                implementations without it, so nothing breaks; results agree
+#                to ~1e-15.
+#   wordcloud  — term cloud in the Text mining panel.
+scipy>=1.11
+wordcloud>=1.9
+
+# Development only.
+#   pytest is NOT required: test_maude.py is a self-contained runner.
+#   statsmodels is used only to cross-check maude_stats against a reference.
+# statsmodels>=0.14

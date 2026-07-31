@@ -1,0 +1,30 @@
+# MaudeDash — Research Edition theme
+#
+# Matches the web tier at maudedash.com: clinical navy structure with a teal
+# accent, so screenshots from either tier read as the same product.
+
+[theme]
+primaryColor = "#12507A"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F1F7FB"
+textColor = "#16232E"
+font = "sans serif"
+
+[server]
+# The corpus is local and read-only; no need to ship usage stats.
+headless = true
+# Cohort exports of a few hundred thousand rows exceed the default cap.
+maxUploadSize = 500
+maxMessageSize = 500
+
+[browser]
+gatherUsageStats = false
+
+[client]
+# Show errors in the app rather than only in the terminal, so a researcher
+# running this locally can see what went wrong.
+showErrorDetails = true
+toolbarMode = "minimal"
+
+[runner]
+fastReruns = true

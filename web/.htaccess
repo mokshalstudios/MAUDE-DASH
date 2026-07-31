@@ -1,0 +1,184 @@
+# MaudeDash — Apache configuration for DreamHost shared hosting
+# =============================================================
+#
+# The site is static: no PHP, no database, no server-side process, no forms and
+# no user accounts. The attack surface is correspondingly small, so this file is
+# mostly about three things:
+#
+#   1. Serving Parquet and WASM correctly. Unknown extensions default to
+#      application/octet-stream, and .wasm must arrive as application/wasm or
+#      the browser refuses to compile it.
+#   2. Protecting HTTP range requests. Compressing .parquet would defeat them
+#      and force whole-file downloads — the difference between a 14 MB session
+#      and a 1.4 GB one.
+#   3. Bandwidth abuse. The realistic threat here is not intrusion but a
+#      crawler or scraper pulling the 1.4 GB payload in a loop.
+#
+# Upload alongside index.html. Note that many SFTP clients hide dotfiles.
+
+# --------------------------------------------------------------- MIME types
+<IfModule mod_mime.c>
+    AddType application/wasm                  .wasm
+    AddType application/vnd.apache.parquet    .parquet
+    AddType text/javascript                   .js .mjs
+    AddType application/json                  .json
+    AddType image/svg+xml                     .svg
+    AddType text/plain                        .txt
+</IfModule>
+
+# ------------------------------------------------------------ Range support
+<IfModule mod_headers.c>
+    # Only Parquet needs range requests. Do NOT strip Content-Encoding from
+    # .wasm here — that would undo the compression configured below.
+    <FilesMatch "\.parquet$">
+        Header set Accept-Ranges bytes
+        Header unset Content-Encoding
+    </FilesMatch>
+</IfModule>
+
+# -------------------------------------------------------------- Compression
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css text/javascript
+    AddOutputFilterByType DEFLATE application/javascript application/json
+    AddOutputFilterByType DEFLATE image/svg+xml text/plain
+    # WebAssembly MUST be compressed. The engine is 34 MB raw and 6.8 MB
+    # gzipped — a 5x difference on every first visit, and 5x the bandwidth
+    # bill. It is fetched whole by WebAssembly.instantiateStreaming, which
+    # decompresses transparently and never issues a range request, so there is
+    # nothing to protect here.
+    AddOutputFilterByType DEFLATE application/wasm
+
+    # Parquet is the opposite case: already ZSTD-compressed internally, so
+    # gzip buys nothing, and compressing it would break the HTTP range
+    # requests the whole architecture depends on.
+    SetEnvIfNoCase Request_URI \.parquet$ no-gzip dont-vary
+</IfModule>
+
+# ------------------------------------------------------------------ Caching
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType application/vnd.apache.parquet "access plus 1 year"
+    ExpiresByType application/wasm               "access plus 1 year"
+    ExpiresByType text/css                       "access plus 7 days"
+    ExpiresByType text/javascript                "access plus 7 days"
+    ExpiresByType image/svg+xml                  "access plus 30 days"
+    ExpiresByType text/html                      "access plus 0 seconds"
+    ExpiresByType application/json               "access plus 0 seconds"
+</IfModule>
+
+<IfModule mod_headers.c>
+    <FilesMatch "\.parquet$">
+        # Immutable for a given release, so repeat visitors re-fetch nothing.
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+    <FilesMatch "\.(html|json)$">
+        Header set Cache-Control "no-cache, must-revalidate"
+    </FilesMatch>
+</IfModule>
+
+# ------------------------------------------------------------ Security headers
+<IfModule mod_headers.c>
+    # Content-Security-Policy — note carefully what this does and does not do.
+    #
+    # Every script on this site is an external file: there is no inline script
+    # and no inline event handler anywhere, so in principle script-src could be
+    # locked to 'self'. In practice it cannot, and the reason is worth recording
+    # because it looks like a mistake otherwise.
+    #
+    # DuckDB-WASM instantiates its WebAssembly module inside a Web Worker.
+    # Under ANY restrictive script-src — including
+    #   script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob: data:
+    # with the engine fully self-hosted — instantiation fails with
+    #   RuntimeError: table index is out of bounds
+    # thrown from inside the WASM module, and NO CSP violation is reported to
+    # the page, because the block happens in the worker context. Bisecting the
+    # policy showed the tool only runs when script-src carries BOTH
+    # 'unsafe-inline' AND 'unsafe-eval'.
+    #
+    # A script-src of "'self' 'unsafe-inline' 'unsafe-eval'" provides
+    # essentially no XSS protection — it permits exactly the two things an
+    # injected script needs. Shipping that would be security theatre: it would
+    # look strict in a scanner and protect nothing. So script-src and
+    # default-src are omitted deliberately, and every other directive is kept.
+    #
+    # This is a defensible trade here because the XSS surface is genuinely nil:
+    # static files only, no server-side code, no database, no forms, no user
+    # accounts, no cookies, and no user-generated content rendered into the
+    # page. There is no session to steal and no input to inject.
+    #
+    # If you later verify that the strict policy works in your target browsers,
+    # prefer the commented-out version below — test the tool actually loads and
+    # runs a cohort before deploying it, not just that the page renders.
+    Header always set Content-Security-Policy "base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; manifest-src 'self'; upgrade-insecure-requests"
+
+    # Strict variant — verify DuckDB still initialises before enabling.
+    # Header always set Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'none'; script-src 'self' 'wasm-unsafe-eval' blob:; worker-src 'self' blob:; connect-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; upgrade-insecure-requests"
+
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Cross-Origin-Opener-Policy "same-origin"
+    Header always set Cross-Origin-Resource-Policy "same-origin"
+
+    # This tool needs no device access whatsoever. Deny it all.
+    Header always set Permissions-Policy "accelerometer=(), autoplay=(), camera=(), display-capture=(), encrypted-media=(), fullscreen=(self), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), publickey-credentials-get=(), screen-wake-lock=(), usb=(), xr-spatial-tracking=(), interest-cohort=()"
+
+    # Enable only once the Let's Encrypt certificate is live and confirmed
+    # working; a premature HSTS header locks users out of an http-only site.
+    # Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+    # Nothing here is a secret, but do not leak the stack.
+    Header unset X-Powered-By
+    Header unset Server
+</IfModule>
+
+# ------------------------------------------------------- Abuse: hotlinking
+# The data files are the expensive asset. Allow direct navigation (no Referer),
+# this site, and nothing else — so another site cannot embed our Parquet and
+# spend our bandwidth. Legitimate use through the tool always sends our own
+# Referer or none at all.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    RewriteCond %{HTTP_REFERER} !^$
+    RewriteCond %{HTTP_REFERER} !^https?://([^/]+\.)?maudedash\.com [NC]
+    RewriteCond %{HTTP_REFERER} !^https?://(localhost|127\.0\.0\.1)(:[0-9]+)? [NC]
+    RewriteRule \.(parquet|wasm)$ - [F,L]
+
+    # ------------------------------------------------- Abuse: bulk scrapers
+    # Blocking the download managers and mirroring tools whose entire purpose is
+    # to recursively pull a site. Ordinary browsers and legitimate research
+    # crawlers are unaffected. This is a courtesy speed bump, not a security
+    # control: User-Agent is trivially forged.
+    RewriteCond %{HTTP_USER_AGENT} (wget|curl/|httrack|webzip|teleport|webcopier|offline\ explorer|mj12bot|ahrefsbot|semrushbot|dotbot|petalbot|megaindex|blexbot|dataforseo|serpstatbot|zoominfobot|bytespider) [NC]
+    RewriteRule \.(parquet)$ - [F,L]
+
+    # A request with no User-Agent at all, for a data file, is not a browser.
+    RewriteCond %{HTTP_USER_AGENT} ^$
+    RewriteRule \.(parquet)$ - [F,L]
+
+    # ---------------------------------------------------------------- HTTPS
+    # Uncomment once the certificate is issued.
+    # RewriteCond %{HTTPS} !=on
+    # RewriteCond %{HTTP:X-Forwarded-Proto} !https
+    # RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+</IfModule>
+
+# --------------------------------------------------------- File protection
+# No directory listings anywhere, and never serve the source or config files
+# that may sit alongside a deployment.
+Options -Indexes
+DirectoryIndex index.html
+
+<FilesMatch "(^\.|\.(md|py|toml|cff|log|bak|sql|duckdb|ini|sh|yml|yaml)$)">
+    Require all denied
+</FilesMatch>
+
+# security.txt must stay reachable despite the dotfile rule above.
+<Files "security.txt">
+    Require all granted
+</Files>
+
+# ------------------------------------------------------------- Error pages
+ErrorDocument 404 /404.html
+ErrorDocument 403 /404.html

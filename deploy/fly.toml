@@ -1,0 +1,60 @@
+# MaudeDash — Research Edition on Fly.io
+# ======================================
+#
+# Optional. The public tool at maudedash.com is the static web tier on
+# DreamHost and needs none of this. Use Fly only if you also want the full
+# Streamlit app hosted rather than downloaded.
+#
+#   fly launch --no-deploy
+#   fly volumes create maude_data --size 5 --region ord
+#   fly deploy
+#   fly sftp shell   # then: put maude_web.duckdb /data/maude.duckdb
+#   fly certs add maudedash.com     # only if you point the apex here
+#
+# Cost at the time of writing: a shared-cpu-1x with 2 GB RAM plus a 5 GB volume
+# runs roughly $3-5/month.
+
+app = "maudedash"
+primary_region = "ord"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8501"
+  MAUDEDASH_DB = "/data/maude.duckdb"
+
+# The slimmed database lives on a persistent volume, not in the image, so a
+# redeploy does not re-upload gigabytes.
+[[mounts]]
+  source = "maude_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8501
+  force_https = true
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  # Keep one machine warm: a cold start on a 2 GB DuckDB is otherwise ~15s,
+  # which reads badly for a tool being cited in a paper.
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 20
+    hard_limit = 40
+
+  # Streamlit holds a WebSocket per visitor; give it room before recycling.
+  [[http_service.checks]]
+    grace_period = "45s"
+    interval = "30s"
+    method = "GET"
+    timeout = "5s"
+    path = "/_stcore/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  # DuckDB will happily use everything you give it. 2 GB comfortably serves the
+  # slimmed corpus; raise to 4 GB if you mount the full build.
+  memory = "2gb"
+  cpus = 1

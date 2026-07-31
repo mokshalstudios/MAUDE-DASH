@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Accessibility — MaudeDash</title>
+<meta name="description" content="MaudeDash accessibility statement: conformance target, known limitations, and how to report a barrier.">
+<link rel="canonical" href="https://maudedash.com/accessibility.html">
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<script src="assets/theme.js"></script>
+<link rel="stylesheet" href="assets/styles.css">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body class="site">
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <a class="brand" href="./">
+    <img class="brand-logo" src="assets/logo.svg" alt="" width="34" height="34">
+    <div class="brand-text">
+      <div class="brand-name">Maude<span class="dash">Dash</span></div>
+      <div class="brand-tag">FDA MAUDE Analytics</div>
+    </div>
+  </a>
+  <nav class="site-nav" aria-label="Main">
+    <a href="methods.html">Methods</a>
+    <a href="terms.html">Terms</a>
+    <a class="nav-cta" href="app.html">Open the tool</a>
+  </nav>
+</header>
+
+<main id="main" class="doc">
+<div class="wrap wrap-narrow">
+
+<h1>Accessibility</h1>
+<p class="updated">Effective 30 July 2026.</p>
+
+<p>
+  MaudeDash aims to be usable by everyone, including people using screen
+  readers, keyboard-only navigation, magnification, or high-contrast settings.
+  The target is <strong>WCAG 2.1 Level AA</strong>.
+</p>
+
+<h2>What is implemented</h2>
+<ul>
+  <li><strong>Keyboard navigation</strong> throughout. Every control is
+  reachable and operable by keyboard; a skip link jumps past the header; the
+  analysis tabs use standard tab semantics; sortable table headers respond to
+  Enter and Space; the type-ahead pickers support arrow keys, Enter and
+  Escape.</li>
+  <li><strong>Visible focus indicators</strong> on interactive elements, not
+  suppressed.</li>
+  <li><strong>Semantic structure</strong> — real headings in order, landmark
+  regions, labelled form controls, and <code>aria-sort</code> on sortable
+  columns so a screen reader announces the current ordering.</li>
+  <li><strong>Colour is never the only signal.</strong> Signal status is shown
+  with text labels (“EMA”, “IC”) as well as colour; unreliable strata are marked
+  with an asterisk and explained in text; warnings carry an icon and a written
+  explanation.</li>
+  <li><strong>Contrast.</strong> Body and interface text meets or exceeds the
+  4.5:1 ratio in both light and dark themes.</li>
+  <li><strong>Light and dark themes</strong>, following your operating system
+  preference by default with a manual override that persists.</li>
+  <li><strong>Responsive and zoom-tolerant layout.</strong> Text reflows to
+  400% zoom without horizontal page scrolling; wide tables and charts scroll
+  within their own container rather than forcing the page sideways.</li>
+  <li><strong>Reduced motion.</strong> The interface uses almost no animation;
+  what exists is brief and non-essential.</li>
+  <li><strong>No time limits, no flashing content, no autoplaying media, and no
+  CAPTCHA.</strong></li>
+</ul>
+
+<h2>Known limitations</h2>
+<p>Stated honestly rather than claimed away:</p>
+<ul>
+  <li><strong>Charts are the weakest area.</strong> Plots are rendered by a
+  third-party charting library as SVG. Data points expose hover labels, but the
+  charts are not fully navigable by screen reader. <em>Mitigation:</em> every
+  chart in the tool is accompanied by the same figures as a real data table, or
+  can be downloaded as CSV, so no information is available only in graphical
+  form. If you rely on a screen reader, the tables and CSV export carry the
+  complete result.</li>
+  <li><strong>The choropleth map</strong> is decorative relative to the country
+  table beside it, which contains every value including codes the map cannot
+  plot.</li>
+  <li><strong>Dense statistical tables</strong> are inherently demanding to
+  navigate linearly. Column headers are marked up correctly, but a table of
+  several hundred problem codes is slow to traverse. Narrowing the cohort
+  reduces it, and CSV export allows review in your own tool.</li>
+  <li><strong>JavaScript is required.</strong> The analysis engine runs in the
+  browser, so the tool cannot function without it. The landing page, methods,
+  terms, privacy and this page are all readable without JavaScript.</li>
+  <li><strong>Large cohorts can take several seconds</strong> to compute. A
+  status indicator is shown, but there is no audible completion cue.</li>
+</ul>
+
+<h2>Assessment</h2>
+<p>
+  This statement is based on self-assessment during development, including
+  keyboard-only navigation and contrast checking. It has not been subjected to a
+  formal third-party audit, and no claim of certified conformance is made.
+</p>
+
+<h2>Reporting a barrier</h2>
+<p>
+  If any part of MaudeDash is difficult or impossible for you to use, that is a
+  defect worth fixing. Please
+  <a href="https://github.com/mokshalstudios/MAUDE-DASH/issues" rel="noopener">open an issue</a>
+  describing what you were trying to do, what happened, and the assistive
+  technology and browser you were using. If a barrier prevents you from
+  obtaining a result, describe the cohort and the figure you need and it can be
+  provided directly.
+</p>
+
+</div>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-legal">
+    <p><strong>MaudeDash is an independent research tool.</strong> Not
+    affiliated with, endorsed by, or reviewed by the U.S. Food and Drug
+    Administration. Not medical advice.</p>
+    <p>© <span id="year">2026</span> Moksha Porwal · MIT License ·
+      <a href="./">Home</a> · <a href="terms.html">Terms</a> ·
+      <a href="privacy.html">Privacy</a> · <a href="methods.html">Methods</a></p>
+  </div>
+</footer>
+<script src="assets/site.js" defer></script>
+</body>
+</html>

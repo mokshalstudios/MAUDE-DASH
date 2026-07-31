@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Explore — MaudeDash</title>
+<meta name="description" content="MaudeDash is a browser-based analytics tool for the U.S. FDA MAUDE medical device adverse event database: 20.7 million reports, FDA 21 CFR 803.3 harm classification, Wilson confidence intervals, disproportionality signal screening and STROBE-ready methods output.">
+<meta name="author" content="Moksha Porwal">
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<script src="assets/theme.js"></script>
+<link rel="stylesheet" href="assets/styles.css">
+<meta property="og:title" content="MaudeDash — FDA MAUDE Adverse Event Analytics">
+<meta property="og:description" content="Publication-grade analytics over 20.7 million FDA MAUDE medical device reports, running entirely in your browser.">
+<meta property="og:type" content="website">
+</head>
+<body>
+
+<!-- ===================== boot screen ===================== -->
+<div class="boot" id="boot">
+  <img class="boot-logo" src="assets/logo.svg" alt="">
+  <div class="boot-name">Maude<span class="dash">Dash</span></div>
+  <div class="boot-sub">
+    Publication-grade analytics over the U.S. FDA Manufacturer and User Facility
+    Device Experience database — running entirely in your browser.
+  </div>
+  <div class="boot-status" id="boot-status">
+    <span class="spinner"></span><span id="boot-msg">Starting…</span>
+  </div>
+  <div class="boot-error" id="boot-error" hidden>
+    <h3>MaudeDash could not start</h3>
+    <div id="boot-error-msg"></div>
+    <pre id="boot-error-detail"></pre>
+  </div>
+</div>
+
+<div class="app" id="app" hidden>
+
+  <!-- ===================== sidebar ===================== -->
+  <aside class="sidebar" id="sidebar">
+    <a class="brand" href="./" title="MaudeDash home">
+      <img class="brand-logo" src="assets/logo.svg" alt="">
+      <div class="brand-text">
+        <div class="brand-name">Maude<span class="dash">Dash</span></div>
+        <div class="brand-tag">FDA MAUDE Analytics</div>
+      </div>
+    </a>
+
+    <div class="sidebar-body">
+      <div class="section-label" style="border-top:none;padding-top:8px;margin-top:10px">
+        Define a cohort
+      </div>
+
+      <div class="field">
+        <label for="f-pc">FDA product code</label>
+        <input type="text" id="f-pc" placeholder="e.g. KWP" maxlength="12"
+               autocomplete="off" spellcheck="false">
+        <div class="hint">Three-letter FDA classification code — the most
+          reliable way to isolate a device class.</div>
+      </div>
+
+      <div class="field">
+        <label for="f-mfg">Manufacturer contains</label>
+        <input type="text" id="f-mfg" placeholder="e.g. medtronic" autocomplete="off">
+      </div>
+
+      <div class="field">
+        <label for="f-dev">Brand / generic / model contains</label>
+        <input type="text" id="f-dev" placeholder="e.g. pedicle screw; rod"
+               autocomplete="off">
+        <div class="hint">Semicolon-separated; any match qualifies.</div>
+      </div>
+
+      <div class="field">
+        <label for="f-narr">Event narrative contains</label>
+        <input type="text" id="f-narr" placeholder="e.g. loosening" autocomplete="off">
+        <div class="hint" id="narr-hint">Searches the event description
+          (first 4,000 characters).</div>
+      </div>
+
+      <div class="field">
+        <label>Report year range</label>
+        <div class="range-row">
+          <span class="range-val" id="yr-lo-val">—</span>
+          <input type="range" id="f-yr-lo" aria-label="Earliest report year">
+        </div>
+        <div class="range-row" style="margin-top:5px">
+          <span class="range-val" id="yr-hi-val">—</span>
+          <input type="range" id="f-yr-hi" aria-label="Latest report year">
+        </div>
+        <div class="hint" id="yr-hint"></div>
+      </div>
+
+      <div class="section-label">Event type</div>
+      <div class="checks">
+        <label class="check"><input type="checkbox" id="f-et-D" checked><span>Deaths</span></label>
+        <label class="check"><input type="checkbox" id="f-et-IN" checked><span>Injuries</span></label>
+        <label class="check"><input type="checkbox" id="f-et-M" checked><span>Malfunctions</span></label>
+      </div>
+
+      <div class="section-label">Cohort exclusions</div>
+      <div class="checks">
+        <label class="check"><input type="checkbox" id="f-ex-fwd">
+          <span>Exclude 803.22(b)(2) forwarded reports</span></label>
+        <label class="check"><input type="checkbox" id="f-ex-rwd">
+          <span>Exclude RWD-sourced reports</span></label>
+        <label class="check"><input type="checkbox" id="f-initial">
+          <span>Initial reports only (drop supplements)</span></label>
+      </div>
+
+      <div class="section-label">Clinical subset</div>
+      <div class="checks">
+        <label class="check"><input type="checkbox" id="f-implant">
+          <span>Implants only</span></label>
+        <label class="check"><input type="checkbox" id="f-serious">
+          <span>Serious outcomes only (D/L/H/S/C/R)</span></label>
+      </div>
+
+      <div class="section-label">Direct lookup</div>
+      <div class="field" style="margin-top:8px">
+        <label for="f-mdr">MDR report key</label>
+        <input type="text" id="f-mdr" placeholder="overrides all filters"
+               autocomplete="off" spellcheck="false">
+      </div>
+
+      <div class="field">
+        <label for="f-limit">Preview / export row cap</label>
+        <input type="number" id="f-limit" value="2000" min="100" max="100000" step="500">
+      </div>
+
+      <div class="btn-row">
+        <button class="btn" id="btn-apply">Run analysis</button>
+        <button class="btn btn-secondary" id="btn-reset">Reset</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ===================== main ===================== -->
+  <div class="main">
+    <div class="topbar">
+      <button class="icon-btn sidebar-toggle" id="btn-sidebar"
+              aria-label="Toggle filters">☰</button>
+      <h1 id="cohort-title">All reports</h1>
+      <div class="spacer"></div>
+      <div class="vintage" id="vintage"><span class="dot"></span><span></span></div>
+      <button class="icon-btn" id="btn-theme" aria-label="Toggle colour theme"
+              title="Toggle light / dark">◐</button>
+      <button class="icon-btn" id="btn-about" aria-label="About and citation"
+              title="About, data provenance and citation">i</button>
+    </div>
+
+    <div class="content">
+      <div class="kpis" id="kpis"></div>
+
+      <div class="tabgroups" id="tabgroups"></div>
+
+      <div id="panels"></div>
+    </div>
+  </div>
+</div>
+
+<div class="busy" id="busy"><span class="spinner"></span><span id="busy-msg">Querying…</span></div>
+
+<!-- ===================== about modal ===================== -->
+<div class="modal-backdrop" id="about-backdrop">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="about-title">
+    <div class="modal-head">
+      <img src="assets/logo.svg" alt="" style="width:26px;height:26px">
+      <h2 id="about-title">About MaudeDash</h2>
+      <button class="icon-btn" id="btn-about-close" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <p><strong>MaudeDash</strong> provides publication-grade analytics over the
+      U.S. FDA Manufacturer and User Facility Device Experience (MAUDE) database,
+      the FDA's passive surveillance system for medical device adverse events.
+      Everything you see is computed in your browser: the host serves static
+      data files and no query, filter or cohort definition is transmitted anywhere.</p>
+
+      <h3>Corpus</h3>
+      <dl id="about-stats"></dl>
+
+      <h3>Coverage caveat</h3>
+      <div class="note note-warn" style="margin:0">
+        <span class="note-icon">▲</span>
+        <div id="about-coverage"></div>
+      </div>
+
+      <h3>Methods</h3>
+      <p>Patient outcomes are the FDA's own categories from
+      <code>SEQUENCE_NUMBER_OUTCOME</code>, dichotomised into the seven harms
+      defined by 21 CFR 803.3 — death, life-threatening, hospitalization,
+      disability, congenital anomaly, required intervention, and other — with a
+      composite "any serious" of D/L/H/S/C/R. Proportions carry Wilson 95%
+      confidence intervals. Group comparisons use Pearson's chi-square, with
+      Fisher's exact test when any cell falls below 10. Disproportionality uses
+      the proportional reporting ratio and reporting odds ratio with log-normal
+      95% intervals and a 0.5 continuity correction, alongside a Yates-corrected
+      chi-square; signals follow the EMA-2008 rule (PRR&nbsp;≥&nbsp;2,
+      χ²&nbsp;≥&nbsp;4, a&nbsp;≥&nbsp;3). Trends use the Cochran-Armitage test
+      for trend in proportions and the tie-corrected Mann-Kendall test on yearly
+      counts. The statistics engine is cross-validated against SciPy to 1e-9 or
+      better on every function.</p>
+
+      <h3>Interpretation</h3>
+      <div class="note note-caveat" style="margin:0">
+        <span class="note-icon">!</span>
+        <div>MAUDE is <strong>passive surveillance with no defined denominator of
+        exposed devices</strong>. Reporting is voluntary for most sources and is
+        subject to under-reporting, stimulated reporting, notoriety effects and
+        duplicate submission. Rates computed here are <strong>proportions of
+        reports, not population incidence rates</strong>, and a disproportionality
+        signal is hypothesis-generating — never evidence of causation.</div>
+      </div>
+
+      <h3>Cite MaudeDash</h3>
+      <div class="cite" id="cite-text"></div>
+      <p style="margin-top:10px">
+        Paper: <a href="https://pubmed.ncbi.nlm.nih.gov/42232423/" target="_blank"
+          rel="noopener">PubMed 42232423</a> ·
+        Source: <a href="https://github.com/mokshalstudios/MAUDE-DASH" target="_blank"
+          rel="noopener">github.com/mokshalstudios/MAUDE-DASH</a> ·
+        Data: <a href="https://www.fda.gov/medical-devices/mandatory-reporting-requirements-manufacturers-importers-and-device-user-facilities/manufacturer-and-user-facility-device-experience-database-maude"
+          target="_blank" rel="noopener">FDA MAUDE</a>
+      </p>
+      <p style="font-size:12px;color:var(--text-3)">
+        MaudeDash is an independent research tool. It is not affiliated with,
+        endorsed by, or reviewed by the U.S. Food and Drug Administration.
+      </p>
+    </div>
+  </div>
+</div>
+
+<script src="vendor/plotly/plotly.min.js"></script>
+<script src="assets/plotly-fallback.js"></script>
+<script type="module" src="assets/app.js"></script>
+</body>
+</html>

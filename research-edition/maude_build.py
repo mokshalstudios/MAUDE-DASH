@@ -225,29 +225,41 @@ def ingest(con, raw: Path, roles: dict, skip_fts: bool) -> None:
     def g(*patterns):
         return ing.glob_many(str(raw), *patterns)
 
-    # Primary tables — skip if already loaded (resume)
-    if table_exists(con, "patient") and row_count(con, "patient") > 0:
-        step(f"patient: already loaded ({row_count(con, 'patient'):,} rows). Skipping.")
-    else:
-        ing.load_pipe_files(con, "PATIENT",
-            g("patient.txt", "patient_utf8.txt", "patientThru*.txt",
-              "patientchange*.txt", "patientadd*.txt"), "patient")
+    ensure_build_log(con)
 
-    if table_exists(con, "device") and row_count(con, "device") > 0:
-        step(f"device: already loaded ({row_count(con, 'device'):,} rows). Skipping.")
-    else:
-        ing.load_pipe_files(con, "DEVICE", g("device*.txt", "DEVICE*.txt"), "device")
+    def load_resumable(label, files, table, **kwargs):
+        """Load `files` into `table`, skipping only if this exact file set was
+        previously loaded to completion.
 
-    if table_exists(con, "foi") and row_count(con, "foi") > 0:
-        step(f"foi: already loaded ({row_count(con, 'foi'):,} rows). Skipping.")
-    else:
-        ing.load_pipe_files(con, "FOITEXT (multi-line aware)",
-            g("foitext*.txt", "FOITEXT*.txt"), "foi", reassemble=True)
+        The old gate was `table_exists and row_count > 0`. Every FDA table is
+        assembled from many files (device is ten, foitext is ten), so a crash
+        after the third file left a non-empty table that the next run reported
+        as "already loaded" — permanently, silently, missing seven files. The
+        build log records the completed file set, so a partial load is retried
+        and a genuinely finished one is skipped.
+        """
+        fingerprint = build_fingerprint(files)
+        if table_exists(con, table) and load_completed(con, table, fingerprint):
+            step(f"{table}: already loaded ({row_count(con, table):,} rows, "
+                 f"{len(files)} source file(s)). Skipping.")
+            return
+        if table_exists(con, table) and row_count(con, table) > 0:
+            step(f"{table}: previous load was incomplete or the source files "
+                 f"changed — reloading {len(files)} file(s) from scratch.")
+            con.execute(f'DROP TABLE IF EXISTS "{table}"')
+        ing.load_pipe_files(con, label, files, table, **kwargs)
+        record_load(con, table, fingerprint, row_count(con, table))
 
-    if table_exists(con, "mdr") and row_count(con, "mdr") > 0:
-        step(f"mdr: already loaded ({row_count(con, 'mdr'):,} rows). Skipping.")
-    else:
-        ing.load_pipe_files(con, "MDRFOI", g("mdrfoi*.txt", "MDRFOI*.txt"), "mdr")
+    load_resumable("PATIENT",
+        g("patient.txt", "patient_utf8.txt", "patientThru*.txt",
+          "patientchange*.txt", "patientadd*.txt"), "patient")
+
+    load_resumable("DEVICE", g("device*.txt", "DEVICE*.txt"), "device")
+
+    load_resumable("FOITEXT (multi-line aware)",
+        g("foitext*.txt", "FOITEXT*.txt"), "foi", reassemble=True)
+
+    load_resumable("MDRFOI", g("mdrfoi*.txt", "MDRFOI*.txt"), "mdr")
 
     # Problem-code data files (format auto-detected by the patched loader)
     if table_exists(con, "patient_problem_codes") and row_count(con, "patient_problem_codes") > 0:
@@ -439,28 +451,90 @@ def validate(db_path: str) -> int:
 
 
 # ---------------------------------------------------------------------------
+# Build log — makes "resume" mean "resume", not "assume"
+# ---------------------------------------------------------------------------
+
+def ensure_build_log(con) -> None:
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS _maudedash_build_log (
+            table_name   VARCHAR PRIMARY KEY,
+            fingerprint  VARCHAR,
+            n_rows       BIGINT,
+            completed_at TIMESTAMP
+        )
+    """)
+
+
+def build_fingerprint(files) -> str:
+    """Identity of a source file set: name, size and mtime of each file.
+
+    Sizes and mtimes are included so that re-downloading a quarter's FDA files
+    invalidates the cached load instead of silently keeping stale data.
+    """
+    import hashlib
+    parts = []
+    for f in sorted(str(x) for x in files):
+        try:
+            stat = os.stat(f)
+            parts.append(f"{os.path.basename(f)}:{stat.st_size}:{int(stat.st_mtime)}")
+        except OSError:
+            parts.append(f"{os.path.basename(f)}:missing")
+    return hashlib.sha256("|".join(parts).encode()).hexdigest()[:32]
+
+
+def load_completed(con, table: str, fingerprint: str) -> bool:
+    try:
+        row = con.execute(
+            "SELECT fingerprint FROM _maudedash_build_log WHERE table_name = ?",
+            [table]).fetchone()
+    except Exception:
+        return False
+    return bool(row) and row[0] == fingerprint
+
+
+def record_load(con, table: str, fingerprint: str, n_rows: int) -> None:
+    con.execute("DELETE FROM _maudedash_build_log WHERE table_name = ?", [table])
+    con.execute(
+        "INSERT INTO _maudedash_build_log VALUES (?, ?, ?, current_timestamp)",
+        [table, fingerprint, int(n_rows)])
+
+
+# ---------------------------------------------------------------------------
 # Cleanup orphaned temp files
 # ---------------------------------------------------------------------------
 
 def clean_temp_files(raw: Path, db_path: str) -> None:
-    # Orphaned duckdb temp spill files from prior crashes
-    patterns = ["duckdb_temp_storage_*.tmp", "*.duckdb.tmp", "*.duckdb.wal"]
+    """Remove orphaned DuckDB spill files left by a crashed run.
+
+    Deliberately does NOT touch *.duckdb.wal. The write-ahead log is not a temp
+    file: after an unclean shutdown it holds committed transactions that have
+    not yet been checkpointed into the main file, and DuckDB replays it on the
+    next open. Earlier versions of this script deleted it on every run, which
+    silently discarded completed work — the opposite of the resumability this
+    builder promises. A stale WAL is harmless; a deleted one loses data.
+    """
+    patterns = ["duckdb_temp_storage_*.tmp", "*.duckdb.tmp"]
+    target = Path(db_path).resolve()
     removed = 0
-    for pat in patterns:
-        for f in raw.glob(pat):
-            try:
-                f.unlink()
-                removed += 1
-            except OSError:
-                pass
-        for f in Path(".").glob(pat):
-            try:
-                f.unlink()
-                removed += 1
-            except OSError:
-                pass
+    seen: set[Path] = set()
+    for base in (raw, Path(".")):
+        for pat in patterns:
+            for f in base.glob(pat):
+                resolved = f.resolve()
+                if resolved in seen or resolved == target:
+                    continue
+                seen.add(resolved)
+                try:
+                    f.unlink()
+                    removed += 1
+                except OSError:
+                    pass
     if removed:
         info(f"  Removed {removed} orphaned temp file(s).")
+    wals = [f for base in (raw, Path("."))
+            for f in base.glob("*.duckdb.wal")]
+    if wals:
+        info(f"  Left {len(wals)} write-ahead log(s) in place for DuckDB to replay.")
 
 
 # ---------------------------------------------------------------------------

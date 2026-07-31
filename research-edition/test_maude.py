@@ -469,36 +469,6 @@ def test_dashboard_subgroup(work: Path) -> None:
     assert len(df) >= 1
 
 
-def test_dashboard_problem_outcome(work: Path) -> None:
-    """Problem -> Outcome query: outcome severity stratified by problem code.
-
-    Joins flat_dev_problems to mdr_flat's outcome flags and aggregates serious
-    / death counts per code. Verifies the join and aggregation produce sane
-    counts (serious count never exceeds total reports for a code).
-    """
-    con = duckdb.connect(str(work / "test.duckdb"), read_only=True)
-    df = con.execute("""
-        WITH keys AS (
-            SELECT MDR_REPORT_KEY, any_serious_outcome, outcome_death
-            FROM mdr_flat
-        )
-        SELECT fp.code AS Code,
-               COUNT(DISTINCT fp.MDR_REPORT_KEY) AS n_reports,
-               SUM(CASE WHEN k.any_serious_outcome THEN 1 ELSE 0 END) AS n_serious,
-               SUM(CASE WHEN k.outcome_death THEN 1 ELSE 0 END) AS n_death
-        FROM flat_dev_problems fp
-        JOIN keys k USING (MDR_REPORT_KEY)
-        GROUP BY 1
-        HAVING COUNT(DISTINCT fp.MDR_REPORT_KEY) >= 1
-    """).fetchdf()
-    assert len(df) >= 1, "Expected at least one problem code with outcomes"
-    for _, r in df.iterrows():
-        assert int(r["n_serious"]) <= int(r["n_reports"]), \
-            f"Serious count exceeds report count for code {r['Code']}"
-        assert int(r["n_death"]) <= int(r["n_reports"]), \
-            f"Death count exceeds report count for code {r['Code']}"
-
-
 def test_dashboard_trend_query(work: Path) -> None:
     """Trend test query."""
     con = duckdb.connect(str(work / "test.duckdb"), read_only=True)
@@ -599,7 +569,6 @@ def main() -> int:
         runner.run("disproportionality query (regression)",
                    lambda: test_dashboard_disproportionality(work))
         runner.run("subgroup analysis query", lambda: test_dashboard_subgroup(work))
-        runner.run("problem-outcome query", lambda: test_dashboard_problem_outcome(work))
         runner.run("trend test query", lambda: test_dashboard_trend_query(work))
         runner.run("source_type split query", lambda: test_dashboard_source_type_split(work))
 

@@ -1,6 +1,6 @@
 """
-maude_stats.py — publication-grade statistical helpers for MAUDE-Dash v4
-========================================================================
+maude_stats.py — statistical engine for MaudeDash
+=================================================
 
 All functions return either a NamedTuple or a plain dict so they are easy to
 consume from Streamlit, log, and serialize.
@@ -8,6 +8,28 @@ consume from Streamlit, log, and serialize.
 Implementations follow standard pharmacovigilance and biostatistics
 references; scipy is used for exact tests where appropriate but everything
 falls back gracefully if scipy is missing.
+
+Corrections in this revision (v5) vs the v4 module used for the published
+analysis. Each is verified against scipy/statsmodels by `test_maude.py`, and
+each can change which problem codes cross the EMA-2008 signal threshold, so
+any number carried over from an earlier run should be regenerated:
+
+  * Yates χ² is now computed on the OBSERVED counts with the continuity
+    correction clamped at zero. v4 fed the 0.5-corrected cells into the χ²
+    and did not clamp, which overstated χ² by 39-49% on sparse tables and
+    scored perfectly null tables (5,5,5,5) as 0.18 instead of 0.
+  * PRR/ROR confidence bounds use the exact 95% z (1.959963984540054)
+    instead of a hardcoded 1.96, matching what wilson_ci() already used.
+  * Mann-Kendall applies the standard tie correction to Var(S). v4 documented
+    one but implemented the no-ties form, overstating significance whenever a
+    yearly series repeated a value.
+  * chi2_sf() provides chi-square tail probabilities without SciPy, so
+    p-values no longer silently become None on a minimal install.
+  * min_expected_cell() exposes Cochran's rule so callers can flag χ² results
+    that rest on expected counts below 5.
+
+This module is mirrored by web/assets/stats.js for the browser tier; the two
+are cross-validated to 1e-9 or better on every function.
 
 References
 ----------
@@ -169,17 +191,15 @@ def analyze_2x2(
     """
     raw_a, raw_b, raw_c, raw_d = int(a), int(b), int(c), int(d)
     A, B, C, D = a + eps, b + eps, c + eps, d + eps
-    n = A + B + C + D
-    n1 = A + B   # exposed total
-    n2 = C + D   # unexposed total
+    z = _z_for_alpha(alpha)
 
     # PRR
     if (A + B) > 0 and (C + D) > 0:
         prr = (A / (A + B)) / (C / (C + D))
         se_ln_prr = math.sqrt((1 / A) - (1 / (A + B)) + (1 / C) - (1 / (C + D)))
         ln_prr = math.log(prr) if prr > 0 else float("nan")
-        prr_lo = math.exp(ln_prr - 1.96 * se_ln_prr) if not math.isnan(ln_prr) else float("nan")
-        prr_hi = math.exp(ln_prr + 1.96 * se_ln_prr) if not math.isnan(ln_prr) else float("nan")
+        prr_lo = math.exp(ln_prr - z * se_ln_prr) if not math.isnan(ln_prr) else float("nan")
+        prr_hi = math.exp(ln_prr + z * se_ln_prr) if not math.isnan(ln_prr) else float("nan")
     else:
         prr = prr_lo = prr_hi = float("nan")
 
@@ -188,14 +208,30 @@ def analyze_2x2(
         ror = (A * D) / (B * C)
         se_ln_ror = math.sqrt((1 / A) + (1 / B) + (1 / C) + (1 / D))
         ln_ror = math.log(ror) if ror > 0 else float("nan")
-        ror_lo = math.exp(ln_ror - 1.96 * se_ln_ror) if not math.isnan(ln_ror) else float("nan")
-        ror_hi = math.exp(ln_ror + 1.96 * se_ln_ror) if not math.isnan(ln_ror) else float("nan")
+        ror_lo = math.exp(ln_ror - z * se_ln_ror) if not math.isnan(ln_ror) else float("nan")
+        ror_hi = math.exp(ln_ror + z * se_ln_ror) if not math.isnan(ln_ror) else float("nan")
     else:
         ror = ror_lo = ror_hi = float("nan")
 
-    # Yates χ² (Mantel-Haenszel form, with continuity correction)
-    if n > 0 and n1 > 0 and n2 > 0 and (A + C) > 0 and (B + D) > 0:
-        chi2_yates = ((abs(A * D - B * C) - n / 2) ** 2 * n) / (n1 * n2 * (A + C) * (B + D))
+    # Yates χ² on the OBSERVED counts, with the correction clamped at zero.
+    #
+    # Two corrections vs MaudeDash v4 and earlier, both of which inflated χ²
+    # and therefore over-produced EMA signals:
+    #   1. v4 fed the eps-corrected cells (A/B/C/D) into the χ². The EMA-2008
+    #      rule is defined on observed counts; the 0.5 ratio correction belongs
+    #      only to PRR/ROR. On sparse tables this overstated χ² by 39-49%.
+    #   2. v4 squared (|ad-bc| - n/2) without clamping, so a table CLOSER to
+    #      independence than n/2 produced a LARGER χ² instead of ~0. A perfectly
+    #      null table such as (5,5,5,5) scored 0.18 rather than 0.
+    # Verified against scipy.stats.chi2_contingency(correction=True).
+    n_obs = raw_a + raw_b + raw_c + raw_d
+    n1 = raw_a + raw_b       # exposed total
+    n2 = raw_c + raw_d       # unexposed total
+    m1 = raw_a + raw_c       # has-outcome total
+    m2 = raw_b + raw_d       # no-outcome total
+    if n_obs > 0 and n1 > 0 and n2 > 0 and m1 > 0 and m2 > 0:
+        corrected = max(0.0, abs(raw_a * raw_d - raw_b * raw_c) - n_obs / 2.0)
+        chi2_yates = (corrected ** 2 * n_obs) / (n1 * n2 * m1 * m2)
     else:
         chi2_yates = float("nan")
 
@@ -222,6 +258,115 @@ def analyze_2x2(
         fisher_p=fisher_p,
         risk_diff=RatioCI(point=rd, lo=rd_lo, hi=rd_hi),
     )
+
+
+class ICResult(NamedTuple):
+    """Bayesian Information Component (BCPNN), the WHO-UMC signal measure."""
+    observed: float
+    expected: float
+    ic: float
+    ic025: float
+    ic975: float
+
+    @property
+    def signal(self) -> bool:
+        """WHO-UMC criterion: the lower credibility bound exceeds zero."""
+        return self.ic025 > 0
+
+    def as_str(self, decimals: int = 2) -> str:
+        return f"{self.ic:.{decimals}f} ({self.ic025:.{decimals}f} to {self.ic975:.{decimals}f})"
+
+
+def information_component(a: float, b: float, c: float, d: float) -> ICResult:
+    """Information Component with 95% credibility interval.
+
+    IC contrasts the observed count against what independence would predict,
+    on a log2 scale, with Bayesian shrinkage toward zero. Unlike PRR and ROR it
+    is stable for rare codes — a single report cannot produce IC025 > 0 — which
+    is exactly the regime where MAUDE disproportionality is most fragile.
+
+    Uses the shrinkage form and the closed-form credibility approximation from
+    Norén GN, Bate A, Orre R, Edwards IR. Extending the methods used to screen
+    the WHO drug safety database. Stat Med 2006;25(21):3740-57. The +0.5 priors
+    are the standard BCPNN choice.
+
+    Layout matches analyze_2x2:
+        a = exposed with outcome    b = exposed without
+        c = unexposed with outcome  d = unexposed without
+
+    Signal when ic025 > 0. This is a stricter, better-behaved criterion than
+    the EMA PRR rule and is what the WHO Uppsala Monitoring Centre uses.
+    """
+    a, b, c, d = float(a), float(b), float(c), float(d)
+    n = a + b + c + d
+    if n <= 0:
+        nan = float("nan")
+        return ICResult(a, nan, nan, nan, nan)
+
+    # Expected count under independence of exposure and outcome.
+    expected = (a + b) * (a + c) / n
+    obs_s = a + 0.5
+    exp_s = expected + 0.5
+
+    ic = math.log2(obs_s / exp_s) if exp_s > 0 else float("nan")
+    # Norén 2006 closed-form 95% credibility bounds.
+    ic025 = ic - 3.3 * obs_s ** -0.5 - 2.0 * obs_s ** -1.5
+    ic975 = ic + 2.4 * obs_s ** -0.5 - 0.5 * obs_s ** -1.5
+    return ICResult(observed=a, expected=expected, ic=ic, ic025=ic025, ic975=ic975)
+
+
+def benjamini_hochberg(p_values: Sequence[Optional[float]]) -> list[Optional[float]]:
+    """Benjamini-Hochberg FDR-adjusted q-values, in the input order.
+
+    Disproportionality screens hundreds of problem codes at once, so raw
+    p-values are badly inflated: at alpha=0.05 across 700 codes you expect ~35
+    spurious hits. Earlier MaudeDash versions applied no multiplicity control
+    at all. Entries that are None or NaN pass through as None and are excluded
+    from the ranking, so a missing Fisher p does not shift everyone else's q.
+
+    Verified against statsmodels.stats.multitest.multipletests(method='fdr_bh').
+    """
+    indexed = [(i, p) for i, p in enumerate(p_values)
+               if p is not None and p == p]
+    out: list[Optional[float]] = [None] * len(p_values)
+    m = len(indexed)
+    if m == 0:
+        return out
+
+    indexed.sort(key=lambda t: t[1])
+    # Walk from the largest p downward, enforcing monotonicity.
+    prev = 1.0
+    for rank in range(m, 0, -1):
+        idx, p = indexed[rank - 1]
+        q = min(prev, p * m / rank)
+        out[idx] = max(0.0, min(1.0, q))
+        prev = q
+    return out
+
+
+def newcombe_diff_ci(a1: int, n1: int, a2: int, n2: int,
+                     alpha: float = 0.05) -> RatioCI:
+    """Newcombe hybrid-score interval for a difference of two proportions.
+
+    Newcombe RG. Interval estimation for the difference between independent
+    proportions: comparison of eleven methods. Stat Med 1998;17(8):873-90
+    (method 10).
+
+    The naive interval (lo1 - hi2, hi1 - lo2) used previously simply subtracts
+    the two Wilson bounds, which over-covers badly and can extend outside
+    [-1, 1]. The hybrid-score form combines them in quadrature and keeps
+    nominal coverage near 95% even with small or extreme cells.
+    """
+    z = _z_for_alpha(alpha)
+    w1 = wilson_ci(a1, n1, alpha=alpha)
+    w2 = wilson_ci(a2, n2, alpha=alpha)
+    if n1 <= 0 or n2 <= 0:
+        return RatioCI(point=float("nan"), lo=float("nan"), hi=float("nan"))
+
+    diff = w1.p - w2.p
+    lo = diff - math.sqrt((w1.p - w1.lo) ** 2 + (w2.hi - w2.p) ** 2)
+    hi = diff + math.sqrt((w1.hi - w1.p) ** 2 + (w2.p - w2.lo) ** 2)
+    return RatioCI(point=diff, lo=max(-1.0, lo), hi=min(1.0, hi))
 
 
 def ema_signal(a: int, prr_point: float, chi2: float,
@@ -301,11 +446,18 @@ def mann_kendall(values: Sequence[float]) -> TrendResult:
                 S += 1
             elif d < 0:
                 S -= 1
-    # Variance (with tie correction)
-    # ties: groups of equal values; we don't have many in count data, so
-    # this is the no-ties form. For count series with ties, results are
-    # approximate; treat S only as descriptive.
-    var_s = n * (n - 1) * (2 * n + 5) / 18.0
+
+    # Variance with the standard tie correction. v4 documented a tie
+    # correction but implemented the no-ties form, which understates the
+    # variance and therefore overstates significance whenever the yearly
+    # series repeats a value — common in low-count cohorts.
+    from collections import Counter
+    tie_adj = sum(t * (t - 1) * (2 * t + 5)
+                  for t in Counter(values).values() if t > 1)
+    var_s = (n * (n - 1) * (2 * n + 5) - tie_adj) / 18.0
+    if var_s <= 0:
+        return TrendResult("mann-kendall", S, None, "no trend",
+                          "Zero variance (all observations tied).")
     if S > 0:
         z = (S - 1) / math.sqrt(var_s)
     elif S < 0:
@@ -319,11 +471,61 @@ def mann_kendall(values: Sequence[float]) -> TrendResult:
 
 
 def _two_sided_z_pvalue(z: float) -> float:
-    """Two-sided normal p-value for a z statistic."""
+    """Two-sided normal p-value for a z statistic.
+
+    Uses the survival function rather than 1 - cdf. The v4 form underflowed to
+    exactly 0.0 once |z| exceeded about 8.3, because 1 - cdf loses every
+    significant digit there; erfc and scipy's sf stay accurate to ~1e-300.
+    """
+    if not (z == z):  # NaN
+        return float("nan")
     if _HAS_SCIPY:
-        return float(2 * (1 - _scipy_stats.norm.cdf(abs(z))))
-    # erfc-based fallback
+        return float(2 * _scipy_stats.norm.sf(abs(z)))
     return math.erfc(abs(z) / math.sqrt(2))
+
+
+def chi2_sf(x: float, df: int) -> float:
+    """Upper tail of the chi-square distribution, P(X²_df >= x).
+
+    Pure-Python regularised incomplete gamma so that chi-square p-values
+    survive a SciPy-less install instead of silently becoming None. Agrees
+    with scipy.stats.chi2.sf to ~1e-12 over the range this tool produces.
+    """
+    if not (x == x) or not (df == df) or df <= 0:
+        return float("nan")
+    if x <= 0:
+        return 1.0
+    s, t = df / 2.0, x / 2.0
+    if t < s + 1:
+        # Series expansion for the lower tail, then complement.
+        total = term = 1.0 / s
+        for k in range(1, 1000):
+            term *= t / (s + k)
+            total += term
+            if abs(term) < abs(total) * 1e-16:
+                break
+        return 1.0 - total * math.exp(-t + s * math.log(t) - math.lgamma(s))
+    # Continued fraction (modified Lentz) for the upper tail.
+    tiny = 1e-300
+    b = t + 1 - s
+    c = 1.0 / tiny
+    d = 1.0 / b
+    h = d
+    for i in range(1, 1000):
+        an = -i * (i - s)
+        b += 2
+        d = an * d + b
+        if abs(d) < tiny:
+            d = tiny
+        c = b + an / c
+        if abs(c) < tiny:
+            c = tiny
+        d = 1.0 / d
+        delta = d * c
+        h *= delta
+        if abs(delta - 1.0) < 1e-16:
+            break
+    return math.exp(-t + s * math.log(t) - math.lgamma(s)) * h
 
 
 # ---------------------------------------------------------------------------
@@ -334,8 +536,14 @@ def chi2_independence(table: Sequence[Sequence[int]]) -> tuple[float, Optional[f
     """Pearson chi-square test of independence. Returns (chi2, p, df).
 
     No continuity correction (only valid for 2×2 tables anyway).
+
+    Use `min_expected_cell(table)` alongside this: the asymptotic p-value is
+    unreliable when any expected cell count falls below 5 (Cochran's rule),
+    which happens readily in subgroup analyses of rare outcomes.
     """
     rows = len(table)
+    if rows == 0:
+        return 0.0, None, 0
     cols = len(table[0])
     if any(len(r) != cols for r in table):
         raise ValueError("All rows must have same number of columns.")
@@ -351,10 +559,32 @@ def chi2_independence(table: Sequence[Sequence[int]]) -> tuple[float, Optional[f
             if exp > 0:
                 chi2 += (table[i][j] - exp) ** 2 / exp
     df = (rows - 1) * (cols - 1)
-    p: Optional[float] = None
+    if df <= 0:
+        return chi2, None, df
+    # sf via SciPy when available, else the pure-Python implementation, so a
+    # SciPy-less install still reports a p-value instead of a blank.
     if _HAS_SCIPY:
         try:
-            p = float(1 - _scipy_stats.chi2.cdf(chi2, df))
+            return chi2, float(_scipy_stats.chi2.sf(chi2, df)), df
         except Exception:
-            p = None
-    return chi2, p, df
+            pass
+    return chi2, chi2_sf(chi2, df), df
+
+
+def min_expected_cell(table: Sequence[Sequence[int]]) -> float:
+    """Smallest expected cell count under independence.
+
+    Below 5, the chi-square approximation should not be trusted; report
+    Fisher's exact instead (or collapse sparse strata).
+    """
+    rows = len(table)
+    if rows == 0:
+        return 0.0
+    cols = len(table[0])
+    n = sum(sum(r) for r in table)
+    if n == 0:
+        return 0.0
+    row_tot = [sum(r) for r in table]
+    col_tot = [sum(table[i][j] for i in range(rows)) for j in range(cols)]
+    return min(row_tot[i] * col_tot[j] / n
+               for i in range(rows) for j in range(cols))

@@ -1,0 +1,53 @@
+# ---------------------------------------------------------------- data files
+# The FDA source files and the built database are far too large for git and are
+# reproducible from the FDA's public downloads. Never commit them.
+*.duckdb
+*.duckdb.wal
+*.duckdb.tmp
+duckdb_temp_storage_*.tmp
+
+# Raw FDA pipe files
+mdrfoi*.txt
+foitext*.txt
+FOITEXT*.txt
+DEVICE*.txt
+device*.txt
+patient*.txt
+patientThru*.txt
+foidevproblem*.txt
+patientproblemcode.txt
+
+# ------------------------------------------------------------ web tier payload
+# ~1.4 GB of generated Parquet. Regenerate with:
+#   python packaging/maude_export_web.py --db maude_final.duckdb --out web/data
+web/data/*.parquet
+web/data/manifest.json
+web/data/summary.json
+web/data/product_index.json
+web/data/manufacturer_index.json
+
+# Vendored browser runtime (~40 MB), regenerate with packaging/vendor_assets.py
+web/vendor/
+
+# ------------------------------------------------------------------- artefacts
+maude_methods_*.md
+maudedash_*.csv
+maudedash_*.xlsx
+maude_*.xlsx
+
+# ---------------------------------------------------------------------- python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+
+# ------------------------------------------------------------------------ misc
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
+.streamlit/secrets.toml

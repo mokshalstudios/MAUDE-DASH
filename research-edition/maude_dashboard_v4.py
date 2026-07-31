@@ -402,7 +402,7 @@ exports: dict[str, pd.DataFrame] = {}
 TAB_LABELS = [
     "Preview", "Yearly Trends", "Event Trends",
     "Clinical Outcomes", "Demographics", "Reporter / Source", "Geography",
-    "Problem Codes", "Problem \u2192 Outcome", "Disproportionality",
+    "Problem Codes", "Disproportionality",
     "Subgroup Analysis", "Trend Tests", "Device Age",
     "Cohort Comparison", "Sensitivity",
     "Time-to-Report", "Narratives", "Death Deep-Dive",
@@ -410,8 +410,8 @@ TAB_LABELS = [
     "STROBE Report", "Master Export",
 ]
 tabs = st.tabs(TAB_LABELS)
-(t_prev, t_year, t_event, t_outcomes, t_dem, t_rep, t_geo, t_prob, t_prob_outcome,
- t_dispro, t_sub, t_trend, t_age, t_cohort, t_sens, t_lag, t_narr, t_death, t_mfg,
+(t_prev, t_year, t_event, t_outcomes, t_dem, t_rep, t_geo, t_prob, t_dispro,
+ t_sub, t_trend, t_age, t_cohort, t_sens, t_lag, t_narr, t_death, t_mfg,
  t_dq, t_raw, t_strobe, t_master) = tabs
 
 
@@ -736,117 +736,6 @@ with t_prob:
                 fig.update_layout(height=520)
                 st.plotly_chart(fig, use_container_width=True)
                 exports["device_problems"] = df
-
-# ---------------------------------------------------------------------------
-# Problem -> Outcome (NEW) — outcome severity stratified by problem code
-# ---------------------------------------------------------------------------
-
-with t_prob_outcome:
-    st.subheader("Problem code \u2192 clinical outcome")
-    st.caption(
-        "For each problem code, the share of reports with a serious outcome "
-        "(D/L/H/S/C/R per 21 CFR 803.3) and with death. Wilson 95% CIs shown. "
-        "Helps identify which failure modes carry the worst clinical "
-        "consequences \u2014 e.g. does fracture lead to worse outcomes than "
-        "loosening? Exploratory only; MAUDE outcome coding is incomplete."
-    )
-    if not clinical_ready:
-        st.info("Re-run the v2 analytic build to enable this tab.")
-    else:
-        which = st.radio("Problem type", ["Device problems", "Patient problems"],
-                        horizontal=True, key="po_which")
-        flat_table = "flat_dev_problems" if which == "Device problems" else "flat_pat_problems"
-        dict_table = "device_problem_dict" if which == "Device problems" else "patient_problem_dict"
-        min_n = st.slider("Minimum reports per code", 3, 200, 10, key="po_minn")
-
-        if flat_table not in tables:
-            st.info(f"{flat_table} not built \u2014 re-run analytic build.")
-        else:
-            dsql = _dict_join_sql(dict_table) if dict_table in tables else \
-                "SELECT NULL::VARCHAR AS FDA_CODE, NULL::VARCHAR AS TERM"
-            df = query(db_path, f"""
-                WITH dict AS ({dsql}),
-                     keys AS (
-                        SELECT MDR_REPORT_KEY, any_serious_outcome, outcome_death
-                        FROM mdr_flat WHERE {where_sql}
-                     )
-                SELECT COALESCE(dict.TERM, fp.code) AS Term,
-                       fp.code AS Code,
-                       COUNT(DISTINCT fp.MDR_REPORT_KEY) AS n_reports,
-                       SUM(CASE WHEN k.any_serious_outcome THEN 1 ELSE 0 END) AS n_serious,
-                       SUM(CASE WHEN k.outcome_death THEN 1 ELSE 0 END) AS n_death
-                FROM {flat_table} fp
-                JOIN keys k USING (MDR_REPORT_KEY)
-                LEFT JOIN dict ON dict.FDA_CODE = fp.code
-                GROUP BY 1, 2
-                HAVING COUNT(DISTINCT fp.MDR_REPORT_KEY) >= {int(min_n)}
-                ORDER BY n_reports DESC
-                LIMIT 40;
-            """, where_params_tuple)
-
-            if df.empty:
-                st.info(f"No problem codes with at least {min_n} reports in this cohort.")
-            else:
-                # Wilson CIs for serious + death rates
-                rows = []
-                for _, r in df.iterrows():
-                    n = int(r["n_reports"])
-                    ns = int(r["n_serious"])
-                    nd = int(r["n_death"])
-                    ci_s = ms.wilson_ci(ns, n)
-                    ci_d = ms.wilson_ci(nd, n)
-                    rows.append({
-                        "Term": r["Term"],
-                        "Reports": n,
-                        "Serious n": ns,
-                        "Serious %": round(ci_s.p * 100, 1),
-                        "Serious lo": ci_s.lo * 100,
-                        "Serious hi": ci_s.hi * 100,
-                        "Serious (95% CI)": ci_s.as_str(),
-                        "Death n": nd,
-                        "Death %": round(ci_d.p * 100, 1),
-                        "Death (95% CI)": ci_d.as_str(),
-                    })
-                out = pd.DataFrame(rows)
-
-                # Forest-style plot of serious-outcome rate by problem code,
-                # ordered by rate so the worst failure modes surface at top.
-                plot_df = out.sort_values("Serious %", ascending=True).tail(20)
-                fig = go.Figure()
-                for _, row in plot_df.iterrows():
-                    fig.add_trace(go.Scatter(
-                        x=[row["Serious lo"], row["Serious hi"]],
-                        y=[row["Term"], row["Term"]],
-                        mode="lines",
-                        line=dict(color="#d62728", width=2),
-                        showlegend=False, hoverinfo="skip",
-                    ))
-                    fig.add_trace(go.Scatter(
-                        x=[row["Serious %"]],
-                        y=[row["Term"]],
-                        mode="markers",
-                        marker=dict(color="#d62728", size=9),
-                        showlegend=False,
-                        hovertemplate=(
-                            f"{row['Term']}<br>"
-                            f"{row['Serious n']}/{row['Reports']} serious "
-                            f"({row['Serious %']}%)<br>"
-                            f"95% CI: {row['Serious lo']:.1f}-{row['Serious hi']:.1f}%"
-                            f"<extra></extra>"
-                        ),
-                    ))
-                fig.update_layout(
-                    title="Serious-outcome rate by problem code \u2014 Wilson 95% CIs",
-                    xaxis_title="Serious outcome rate (%)",
-                    height=560, margin=dict(l=220, r=40, t=60, b=40),
-                )
-                st.plotly_chart(fig, use_container_width=True)
-                st.dataframe(
-                    out[["Term", "Reports", "Serious n", "Serious (95% CI)",
-                         "Death n", "Death (95% CI)"]],
-                    use_container_width=True, hide_index=True, height=400,
-                )
-                exports["problem_outcome"] = out
 
 # ---------------------------------------------------------------------------
 # Disproportionality
@@ -1588,58 +1477,24 @@ MAUDE-Dash v4 dashboard.
 with t_master:
     st.subheader("Master export")
     st.caption("Direct dump of `mdr_flat` filtered to your selection.")
-    # Cap the pull. Excel maxes out near 1,048,576 rows and the browser will
-    # choke long before that. For very broad cohorts we cap and offer CSV.
-    EXCEL_ROW_CAP = 200_000
-    n_match = int(query(db_path,
-        f"SELECT COUNT(*) AS n FROM mdr_flat WHERE {where_sql}",
-        where_params_tuple).iloc[0]["n"])
-
-    if n_match == 0:
+    df = query(db_path, f"""
+        SELECT * FROM mdr_flat WHERE {where_sql}
+        ORDER BY DATE_PREF DESC NULLS LAST, MDR_REPORT_KEY;
+    """, where_params_tuple)
+    if df.empty:
         st.info("No data.")
     else:
-        if n_match > EXCEL_ROW_CAP:
-            st.warning(
-                f"This cohort has {n_match:,} rows. Excel export is capped at "
-                f"{EXCEL_ROW_CAP:,} rows (Excel's own limit is ~1.05M and the "
-                f"browser would struggle well before that). Narrow your filter, "
-                f"or use the CSV download which streams the full set."
-            )
-        df = query(db_path, f"""
-            SELECT * FROM mdr_flat WHERE {where_sql}
-            ORDER BY DATE_PREF DESC NULLS LAST, MDR_REPORT_KEY
-            LIMIT {EXCEL_ROW_CAP};
-        """, where_params_tuple)
-        st.success(
-            f"Showing {len(df):,} rows"
-            + (f" (of {n_match:,} total — capped)" if n_match > EXCEL_ROW_CAP else "")
-            + "."
-        )
+        st.success(f"{len(df):,} rows — full filtered population.")
         st.dataframe(df.head(500), use_container_width=True, height=420)
         exports["master_export"] = df
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        c1, c2 = st.columns(2)
-        with c1:
-            st.download_button(
-                f"Download Excel ({len(df):,} rows)",
-                data=df_to_excel(df, "Master"),
-                file_name=f"maude_master_{ts}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key=f"dl_master_{ts}",
-            )
-        with c2:
-            # CSV can hold the full set without Excel's row ceiling
-            full_csv = query(db_path, f"""
-                SELECT * FROM mdr_flat WHERE {where_sql}
-                ORDER BY DATE_PREF DESC NULLS LAST, MDR_REPORT_KEY;
-            """, where_params_tuple).to_csv(index=False).encode("utf-8")
-            st.download_button(
-                f"Download CSV (all {n_match:,} rows)",
-                data=full_csv,
-                file_name=f"maude_master_{ts}.csv",
-                mime="text/csv",
-                key=f"dl_master_csv_{ts}",
-            )
+        st.download_button(
+            "Download master (.xlsx)",
+            data=df_to_excel(df, "Master"),
+            file_name=f"maude_master_{ts}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key=f"dl_master_{ts}",
+        )
 
 # ---------------------------------------------------------------------------
 # Sidebar exports

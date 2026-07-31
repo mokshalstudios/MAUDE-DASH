@@ -1,0 +1,25 @@
+# MaudeDash security contact (RFC 9116)
+#
+# MaudeDash is a static site: no server-side code, no database, no accounts, no
+# forms and no user data. Reports most likely to be relevant concern the
+# Content-Security-Policy, dependency integrity, or content that should not be
+# public (for example, identifying information surviving FDA redaction in a
+# narrative).
+
+Contact: https://github.com/mokshalstudios/MAUDE-DASH/security/advisories/new
+Contact: https://github.com/mokshalstudios/MAUDE-DASH/issues
+
+Expires: 2027-07-30T00:00:00.000Z
+
+Preferred-Languages: en
+Canonical: https://maudedash.com/.well-known/security.txt
+Policy: https://maudedash.com/terms.html
+
+# Please allow a reasonable period for a fix before public disclosure. This is a
+# volunteer-maintained academic project; there is no bounty programme, but
+# credit is given gladly.
+#
+# Out of scope: the content of FDA reports themselves. MaudeDash reproduces
+# public records and does not control them — report those to the FDA, which
+# holds the source data. Also out of scope: missing security headers on the
+# public data files, which are deliberately cacheable and public.

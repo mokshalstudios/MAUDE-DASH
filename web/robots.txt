@@ -1,0 +1,42 @@
+# MaudeDash — https://maudedash.com
+#
+# The pages are welcome to be indexed. The data directory is not: it holds
+# 1.4 GB of Parquet that a crawler would download in full without ever
+# rendering a page, which costs bandwidth and indexes nothing useful. Anyone
+# who genuinely wants the dataset should take it from the FDA, or rebuild it
+# with the published source — that is what open source is for.
+
+User-agent: *
+Allow: /
+Disallow: /data/
+Disallow: /vendor/
+
+# Bulk mirroring tools have no legitimate use here.
+User-agent: HTTrack
+Disallow: /
+User-agent: WebZIP
+Disallow: /
+User-agent: Teleport
+Disallow: /
+User-agent: WebCopier
+Disallow: /
+User-agent: Offline Explorer
+Disallow: /
+User-agent: wget
+Disallow: /
+
+# SEO backlink crawlers provide no value to a research tool and are noisy.
+User-agent: AhrefsBot
+Disallow: /
+User-agent: SemrushBot
+Disallow: /
+User-agent: MJ12bot
+Disallow: /
+User-agent: DotBot
+Disallow: /
+User-agent: BLEXBot
+Disallow: /
+User-agent: DataForSeoBot
+Disallow: /
+
+Sitemap: https://maudedash.com/sitemap.xml

@@ -1,0 +1,52 @@
+cff-version: 1.2.0
+title: "MaudeDash: an open analytic platform for the FDA MAUDE medical device adverse event database"
+message: "If you use MaudeDash in research, please cite both the software and the paper below."
+type: software
+authors:
+  - family-names: Porwal
+    given-names: Moksha
+repository-code: "https://github.com/mokshalstudios/MAUDE-DASH"
+url: "https://maudedash.com"
+abstract: >-
+  MaudeDash provides publication-grade analytics over the United States Food and
+  Drug Administration Manufacturer and User Facility Device Experience (MAUDE)
+  database. It classifies patient outcomes using the seven harm categories
+  defined at 21 CFR 803.3, reports proportions with Wilson score confidence
+  intervals, screens for disproportionality using the proportional reporting
+  ratio and reporting odds ratio under the EMA 2008 criteria, tests temporal
+  trends with the Cochran-Armitage and Mann-Kendall tests, and generates a
+  STROBE-style methods paragraph matching the analysed cohort. It ships in two
+  tiers: a static browser application that queries a Parquet extract of the full
+  20.7-million-report corpus using DuckDB-WASM with no server-side process, and
+  a Streamlit research edition that runs against a locally built DuckDB
+  containing the complete corpus with untruncated narratives.
+keywords:
+  - MAUDE
+  - medical device safety
+  - pharmacovigilance
+  - post-market surveillance
+  - adverse event reporting
+  - disproportionality analysis
+  - signal detection
+  - FDA
+license: MIT
+version: "5.0"
+preferred-citation:
+  type: article
+  title: "MaudeDash: an open analytic platform for the FDA MAUDE medical device adverse event database"
+  authors:
+    - family-names: Porwal
+      given-names: Moksha
+  journal: "Surgical Neurology International"
+  year: 2026
+  doi: "10.25259/SNI_201_2026"
+  url: "https://pubmed.ncbi.nlm.nih.gov/42232423/"
+references:
+  - type: database
+    title: "Manufacturer and User Facility Device Experience (MAUDE) Database"
+    authors:
+      - name: "U.S. Food and Drug Administration"
+    url: "https://www.fda.gov/medical-devices/mandatory-reporting-requirements-manufacturers-importers-and-device-user-facilities/manufacturer-and-user-facility-device-experience-database-maude"
+    notes: >-
+      MaudeDash is an independent research tool. It is not affiliated with,
+      endorsed by, or reviewed by the U.S. Food and Drug Administration.

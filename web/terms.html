@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Terms of Use — MaudeDash</title>
+<meta name="description" content="Terms of use for MaudeDash, an open-access research tool for the FDA MAUDE medical device adverse event database.">
+<link rel="canonical" href="https://maudedash.com/terms.html">
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<script src="assets/theme.js"></script>
+<link rel="stylesheet" href="assets/styles.css">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body class="site">
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <a class="brand" href="./">
+    <img class="brand-logo" src="assets/logo.svg" alt="" width="34" height="34">
+    <div class="brand-text">
+      <div class="brand-name">Maude<span class="dash">Dash</span></div>
+      <div class="brand-tag">FDA MAUDE Analytics</div>
+    </div>
+  </a>
+  <nav class="site-nav" aria-label="Main">
+    <a href="methods.html">Methods</a>
+    <a href="privacy.html">Privacy</a>
+    <a class="nav-cta" href="app.html">Open the tool</a>
+  </nav>
+</header>
+
+<main id="main" class="doc">
+<div class="wrap wrap-narrow">
+
+<h1>Terms of Use</h1>
+<p class="updated">Effective 30 July 2026. Applies to maudedash.com and the MaudeDash software.</p>
+
+<div class="note note-warn">
+  <span class="note-icon">⚠️</span>
+  <div><strong>MaudeDash is not medical advice.</strong> It is a research
+  instrument for analysing a public database of adverse event reports. Nothing
+  here is a diagnosis, a treatment recommendation, a safety determination, or a
+  statement that any device is defective or unsafe. If you have a medical
+  concern about a device, speak to a qualified clinician. To report a device
+  problem to the FDA, use
+  <a href="https://www.fda.gov/safety/medwatch-fda-safety-information-and-adverse-event-reporting-program" rel="noopener">MedWatch</a>.</div>
+</div>
+
+<h2>1. What MaudeDash is</h2>
+<p>
+  MaudeDash is a free, open-source analytics tool for the U.S. Food and Drug
+  Administration's Manufacturer and User Facility Device Experience (MAUDE)
+  database. It reformats publicly released FDA data and computes descriptive and
+  inferential statistics over it. The software is published under the MIT
+  License; the underlying FDA data is a work of the U.S. Government and is in
+  the public domain.
+</p>
+
+<h2>2. No affiliation with the FDA or manufacturers</h2>
+<p>
+  MaudeDash is an independent project. It is <strong>not affiliated with,
+  endorsed by, sponsored by, certified by, or reviewed by</strong> the U.S. Food
+  and Drug Administration, any other government body, or any medical device
+  manufacturer, distributor or healthcare organisation. References to the FDA
+  identify the source of the underlying data and nothing more. Device names,
+  brand names and manufacturer names shown by the tool are reproduced from FDA
+  records and remain the trademarks of their respective owners; their appearance
+  is nominative use for identification, not affiliation or endorsement.
+</p>
+
+<h2>3. The nature of the underlying data</h2>
+<p>
+  You must understand the following before relying on any output. These are
+  properties of MAUDE itself, not shortcomings of this tool.
+</p>
+<ul>
+  <li><strong>There is no denominator.</strong> MAUDE records reports, not
+  exposures. The number of devices in use is unknown, so no failure rate,
+  incidence, risk or probability can be derived. Percentages shown by MaudeDash
+  are shares <em>of reports</em>.</li>
+  <li><strong>Reporting is voluntary for many sources and incomplete for all
+  of them.</strong> Report volume reflects reporting behaviour, regulatory
+  attention and publicity at least as much as device performance.</li>
+  <li><strong>Reports are unverified.</strong> A report reflects what a
+  submitter stated. The FDA does not confirm that the described event occurred
+  as reported, nor that the device caused it.</li>
+  <li><strong>Reports may be duplicated, amended or withdrawn</strong>, and the
+  FDA revises the database retroactively. Figures change over time.</li>
+  <li><strong>Disproportionality signals are hypothesis-generating only.</strong>
+  A statistical signal is a prompt to investigate, never evidence of causation,
+  defect, negligence or liability.</li>
+</ul>
+
+<h2>4. Permitted use</h2>
+<p>You may use MaudeDash for research, education, journalism, regulatory
+analysis, clinical quality improvement and other lawful purposes, including
+commercially, subject to the MIT License and these terms.</p>
+
+<h2>5. Prohibited use</h2>
+<p>You must not:</p>
+<ul>
+  <li>present MaudeDash output as an FDA finding, an official safety
+  communication, or a regulatory determination;</li>
+  <li>state or imply that a device is defective, unsafe or caused harm on the
+  basis of report counts or disproportionality signals alone;</li>
+  <li>use the tool or its output to harass, defame or make unfounded claims
+  about any individual, clinician, facility or company;</li>
+  <li>attempt to re-identify any patient, reporter or other individual from
+  narrative text or any combination of fields;</li>
+  <li>impose an unreasonable load on the service — for example by automated
+  bulk downloading of the data files, scraping in a loop, or any activity that
+  degrades availability for others. If you need the full dataset, obtain it from
+  the <a href="https://www.fda.gov/medical-devices/mandatory-reporting-requirements-manufacturers-importers-and-device-user-facilities/manufacturer-and-user-facility-device-experience-database-maude" rel="noopener">FDA</a>
+  or rebuild it with the published
+  <a href="https://github.com/mokshalstudios/MAUDE-DASH" rel="noopener">source code</a>,
+  which is exactly what it is published for;</li>
+  <li>circumvent, disable or interfere with any security or access-control
+  measure, or misrepresent the origin of the software.</li>
+</ul>
+
+<h2>6. Patient privacy</h2>
+<p>
+  MAUDE narratives are redacted by the FDA before release under exemptions
+  (b)(4) and (b)(6) of the Freedom of Information Act. Redaction is imperfect and
+  identifying details occasionally survive in free text. If you encounter
+  apparently identifying information, do not republish it, and report it to the
+  FDA. Any attempt to re-identify individuals is prohibited under section 5 and
+  may violate applicable law.
+</p>
+
+<h2>7. No warranty</h2>
+<p>
+  MaudeDash is provided <strong>“as is”, without warranty of any kind</strong>,
+  express or implied, including but not limited to warranties of
+  merchantability, fitness for a particular purpose, accuracy, completeness and
+  non-infringement. Although the statistical implementations are tested and
+  cross-validated against reference libraries, no assurance is given that the
+  data, the calculations, or the availability of the service are free of error
+  or interruption. You are responsible for independently verifying any figure
+  before relying on it, publishing it, or acting on it.
+</p>
+
+<h2>8. Limitation of liability</h2>
+<p>
+  To the maximum extent permitted by law, the author shall not be liable for any
+  direct, indirect, incidental, special, consequential or exemplary damages
+  arising from your use of, or inability to use, MaudeDash — including any
+  decision, publication, clinical action or business outcome based on its
+  output — even if advised of the possibility of such damages.
+</p>
+
+<h2>9. Availability and changes</h2>
+<p>
+  MaudeDash is offered without any service-level commitment and may be modified,
+  suspended or withdrawn at any time. The underlying dataset is refreshed
+  periodically; the data vintage is displayed in the tool and in every generated
+  methods paragraph, and you should record it alongside any figure you publish.
+  These terms may be updated; the effective date above will change accordingly.
+</p>
+
+<h2>10. Citation</h2>
+<p>
+  Citation is requested, not required. If MaudeDash contributed to published
+  work, please cite the paper and state the data vintage — see the
+  <a href="./#cite">citation section</a>.
+</p>
+
+<h2>11. Governing law</h2>
+<p>
+  These terms are governed by the laws of the State of Ohio, United States,
+  without regard to conflict-of-law principles. If any provision is held
+  unenforceable, the remainder stays in effect.
+</p>
+
+<h2>12. Contact</h2>
+<p>
+  Corrections, security reports and questions:
+  <a href="https://github.com/mokshalstudios/MAUDE-DASH/issues" rel="noopener">open an issue</a>
+  on the source repository. For security specifically, see
+  <a href="/.well-known/security.txt">security.txt</a>.
+</p>
+
+</div>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-legal">
+    <p><strong>MaudeDash is an independent research tool.</strong> Not
+    affiliated with, endorsed by, or reviewed by the U.S. Food and Drug
+    Administration. Not medical advice. MAUDE is passive surveillance; figures
+    describe reporting patterns, not device failure rates.</p>
+    <p>© <span id="year">2026</span> Moksha Porwal · MIT License ·
+      <a href="./">Home</a> · <a href="privacy.html">Privacy</a> ·
+      <a href="accessibility.html">Accessibility</a> ·
+      <a href="methods.html">Methods</a></p>
+  </div>
+</footer>
+<script src="assets/site.js" defer></script>
+</body>
+</html>

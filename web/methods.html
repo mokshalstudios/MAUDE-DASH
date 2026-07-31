@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Methods &amp; Statistics — MaudeDash</title>
+<meta name="description" content="How MaudeDash builds its corpus from FDA source files, how patient harm is classified under 21 CFR 803.3, and every statistical method it uses, with references and validation.">
+<link rel="canonical" href="https://maudedash.com/methods.html">
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<script src="assets/theme.js"></script>
+<link rel="stylesheet" href="assets/styles.css">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body class="site">
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <a class="brand" href="./">
+    <img class="brand-logo" src="assets/logo.svg" alt="" width="34" height="34">
+    <div class="brand-text">
+      <div class="brand-name">Maude<span class="dash">Dash</span></div>
+      <div class="brand-tag">FDA MAUDE Analytics</div>
+    </div>
+  </a>
+  <nav class="site-nav" aria-label="Main">
+    <a href="terms.html">Terms</a>
+    <a href="privacy.html">Privacy</a>
+    <a class="nav-cta" href="app.html">Open the tool</a>
+  </nav>
+</header>
+
+<main id="main" class="doc">
+<div class="wrap wrap-narrow">
+
+<h1>Methods &amp; Statistics</h1>
+<p class="updated">Everything MaudeDash does to the data, and every test it runs, with references.</p>
+
+<nav class="toc" aria-label="Contents">
+  <h2>Contents</h2>
+  <ul>
+    <li><a href="#corpus">Building the corpus</a></li>
+    <li><a href="#outcomes">Outcome classification</a></li>
+    <li><a href="#cohort">Cohort definition</a></li>
+    <li><a href="#proportions">Proportions and intervals</a></li>
+    <li><a href="#groups">Group comparisons</a></li>
+    <li><a href="#trends">Trend tests</a></li>
+    <li><a href="#signals">Signal detection</a></li>
+    <li><a href="#multiplicity">Multiplicity</a></li>
+    <li><a href="#validation">Validation</a></li>
+    <li><a href="#coverage">Coverage &amp; caveats</a></li>
+    <li><a href="#corrections">Corrections history</a></li>
+    <li><a href="#refs">References</a></li>
+  </ul>
+</nav>
+
+<h2 id="corpus">Building the corpus</h2>
+<p>
+  The FDA distributes MAUDE as pipe-delimited text files, one set per data
+  domain, split by year. MaudeDash ingests the MDR master file, the device file,
+  the patient file, the narrative text file, and the device- and patient-problem
+  code files, together roughly 40 GB.
+</p>
+<ul>
+  <li><strong>Narrative reassembly.</strong> Narrative records frequently span
+  multiple physical lines with embedded delimiters. A state-machine parser
+  reassembles them, rather than the naive line-per-record read that silently
+  truncates long descriptions.</li>
+  <li><strong>Denormalisation.</strong> The tables are joined into one row per
+  medical device report, keyed on <code>MDR_REPORT_KEY</code>. Patient-level
+  fields are aggregated to report level. Device fields are attached from the
+  first device record per report, ordered by <code>DEVICE_EVENT_KEY</code>.</li>
+  <li><strong>Typed dates.</strong> A preferred report date is derived from
+  <code>DATE_RECEIVED</code>, falling back to <code>REPORT_DATE</code>, and used
+  for all year-based grouping.</li>
+  <li><strong>Derived fields.</strong> Device age is parsed from free-text
+  <code>DEVICE_AGE_TEXT</code> across hour, day, week, month and year units;
+  patient age is normalised similarly; supplement submissions are identified
+  from <code>SUPPLEMENT_NUMBER</code>.</li>
+</ul>
+<p>
+  The published build pipeline reproduces this from the FDA's own files, and the
+  test suite exercises each parsing path against synthetic records with
+  deliberate edge cases.
+</p>
+
+<h2 id="outcomes">Outcome classification</h2>
+<p>
+  Most MAUDE analyses stop at <code>EVENT_TYPE</code>, a three-way
+  death/injury/malfunction flag chosen by the submitter. MaudeDash instead
+  decodes <code>SEQUENCE_NUMBER_OUTCOME</code>, the FDA's structured patient
+  outcome field, into the seven categories defined at
+  <strong>21 CFR § 803.3</strong>:
+</p>
+<ul>
+  <li>D — death</li>
+  <li>L — life-threatening</li>
+  <li>H — hospitalization, initial or prolonged</li>
+  <li>S — disability or permanent damage</li>
+  <li>C — congenital anomaly or birth defect</li>
+  <li>R — required intervention to prevent permanent impairment</li>
+  <li>O — other</li>
+</ul>
+<p>
+  A composite <strong>“any serious outcome”</strong> is defined as any of
+  D, L, H, S, C or R, matching the statutory definition of a serious injury. A
+  single report may carry several outcomes, so these categories are not mutually
+  exclusive and do not sum to 100%.
+</p>
+<p>
+  Outcome coding is voluntary and incomplete. A report with no outcome code is
+  not necessarily benign; check the Data quality panel for coverage in your
+  cohort before quoting any outcome rate.
+</p>
+
+<h2 id="cohort">Cohort definition</h2>
+<p>
+  A cohort is the set of reports matching the sidebar filters: FDA product code,
+  manufacturer substring, brand/generic/model substring, narrative text,
+  report-year range, event types, and optional exclusions. Every analysis
+  recomputes against that definition, and the exact filter — with bound
+  parameter values inlined so it runs as written — is available in the Methods
+  panel of the tool alongside a generated STROBE-style paragraph.
+</p>
+<p>Three exclusions implement standard MAUDE study protocol choices:</p>
+<ul>
+  <li><strong>Forwarded reports</strong> submitted under 21 CFR 803.22(b)(2) by
+  a manufacturer or importer about a device not of their own manufacture.</li>
+  <li><strong>Real-world-data-sourced reports</strong> under the 21 CFR 803.19
+  exemption, which are structured differently from form-based submissions.</li>
+  <li><strong>Supplements</strong>, leaving initial reports only. Recommended
+  for population estimates, since a supplement extends an existing report and
+  would otherwise double-count the event.</li>
+</ul>
+
+<h2 id="proportions">Proportions and intervals</h2>
+<p>
+  All proportions are reported with <strong>Wilson score 95% confidence
+  intervals</strong> rather than the textbook normal approximation, which
+  behaves badly for small samples and for proportions near 0 or 1 — exactly the
+  regime most harm rates occupy. Edge cases are handled explicitly: zero
+  successes yields a lower bound of exactly 0, and all successes an upper bound
+  of exactly 1.
+</p>
+<p>
+  Differences between two independent proportions use <strong>Newcombe's
+  hybrid-score interval</strong> (method 10), which combines the two Wilson
+  intervals in quadrature. Subtracting Wilson bounds directly over-covers and
+  can produce intervals extending beyond the possible range.
+</p>
+
+<h2 id="groups">Group comparisons</h2>
+<p>
+  Comparisons across strata use <strong>Pearson's chi-square test of
+  independence</strong>. The minimum expected cell count is computed and
+  displayed; where it falls below 5, Cochran's rule is violated, the asymptotic
+  p-value is unreliable, and the tool says so explicitly rather than printing a
+  number that looks authoritative. For 2×2 tables, a <strong>Yates continuity
+  correction</strong> is applied to observed counts with the correction clamped
+  at zero, and <strong>Fisher's exact test</strong> is computed where any cell
+  contains fewer than 10 observations.
+</p>
+<p>
+  Subgroup analyses display the largest strata, capped for legibility. When the
+  cap binds, the tool states how many strata exist and that the chi-square is
+  computed on the displayed subset only — it is not a test across all strata.
+</p>
+
+<h2 id="trends">Trend tests</h2>
+<p>
+  Two complementary tests are reported on annual series:
+</p>
+<ul>
+  <li><strong>Cochran-Armitage test for trend in proportions</strong>, using the
+  report year as the ordered group score. Appropriate when asking whether a
+  <em>rate</em> is moving.</li>
+  <li><strong>Mann-Kendall non-parametric monotonic trend test</strong> on
+  annual counts, with the standard tie correction to the variance. Appropriate
+  when asking whether <em>volume</em> is moving, without assuming normality.</li>
+</ul>
+<p>
+  Both describe the reporting series, not device risk. Regulatory changes,
+  recalls and publicity move these curves independently of any change in
+  real-world device behaviour, and the most recent year is usually partial.
+</p>
+
+<h2 id="signals">Signal detection</h2>
+<p>
+  Disproportionality asks whether a problem code appears more often in your
+  cohort than in the rest of the database. MaudeDash reports four measures and
+  <strong>two independent signal criteria</strong>, because the frequentist and
+  Bayesian approaches fail in different places.
+</p>
+<p>For each problem code, a 2×2 table is formed:</p>
+<div class="table-wrap"><table>
+<thead><tr><th></th><th class="right">Has code</th><th class="right">Lacks code</th></tr></thead>
+<tbody>
+<tr><td><strong>In cohort</strong></td><td class="right">a</td><td class="right">b</td></tr>
+<tr><td><strong>Comparator</strong></td><td class="right">c</td><td class="right">d</td></tr>
+</tbody></table></div>
+<ul>
+  <li><strong>PRR</strong> = (a/(a+b)) / (c/(c+d)), with a log-normal 95%
+  interval using the Sahai-Khurshid standard error and a 0.5 continuity
+  correction.</li>
+  <li><strong>ROR</strong> = ad/bc, with a log-normal 95% interval using the
+  Wald standard error.</li>
+  <li><strong>Information Component (IC)</strong>, the Bayesian measure used by
+  the WHO Uppsala Monitoring Centre, computed in the shrinkage form
+  IC = log₂((O + ½)/(E + ½)) with the closed-form credibility bounds of Norén
+  et al. E is the count expected under independence.</li>
+  <li><strong>Yates-corrected chi-square</strong> and, for sparse tables,
+  <strong>Fisher's exact test</strong>.</li>
+</ul>
+<p>The two criteria:</p>
+<ul>
+  <li><strong>EMA-2008:</strong> PRR ≥ 2, χ² ≥ 4, and at least 3 reports.</li>
+  <li><strong>WHO-UMC:</strong> IC₀₂₅ &gt; 0, the lower bound of the 95%
+  credibility interval above zero.</li>
+</ul>
+<div class="note note-info">
+  <span class="note-icon">ⓘ</span>
+  <div><strong>Why both.</strong> PRR is a ratio of small numbers and is
+  extremely volatile for rare codes: a single report against a low expected
+  count can produce an enormous PRR and clear the EMA threshold. The Information
+  Component shrinks toward zero when evidence is thin, so a lone report can
+  never produce IC₀₂₅ &gt; 0. Reporting both makes the fragile signals visible
+  as exactly that. <strong>Codes flagged by both criteria are the defensible
+  set</strong>, and the tool counts them for you.</div>
+</div>
+<p>
+  <strong>The comparator matters.</strong> It is the set of reports
+  <em>eligible</em> to carry a problem code — those from 2015 onward — not the
+  whole corpus. The FDA problem-code files begin in 2015, so roughly 20% of all
+  reports structurally cannot carry a code; including them in the denominator
+  inflates every PRR by about 25% and manufactures signals at the PRR ≥ 2
+  threshold. The comparator size is displayed with the results.
+</p>
+
+<h2 id="multiplicity">Multiplicity</h2>
+<p>
+  A disproportionality screen tests hundreds of problem codes simultaneously. At
+  α = 0.05 across 700 codes, roughly 35 will appear “significant” by chance
+  alone. MaudeDash therefore reports <strong>Benjamini-Hochberg false discovery
+  rate q-values</strong> alongside raw p-values. An unadjusted p of 0.04 among
+  several hundred tests is not evidence of anything.
+</p>
+<p>
+  No correction addresses the deeper limitation: MAUDE has no exposure
+  denominator, so a disproportionality measure cannot be converted into a risk.
+</p>
+
+<h2 id="validation">Validation</h2>
+<p>
+  The statistical engine exists twice — in Python for the downloadable Research
+  Edition and in JavaScript for the browser tool — and the two are validated
+  against each other and against reference implementations on every function.
+</p>
+<ul>
+  <li>Wilson intervals, Cochran-Armitage, Mann-Kendall, chi-square, Fisher's
+  exact and the Yates correction are checked against <strong>SciPy</strong>;
+  agreement is to 1e-9 or better, and the Yates implementation matches
+  <code>scipy.stats.chi2_contingency(correction=True)</code> exactly.</li>
+  <li>Benjamini-Hochberg is checked against
+  <strong>statsmodels</strong> <code>multipletests(method='fdr_bh')</code>;
+  agreement to 3e-17.</li>
+  <li>Chi-square and normal tail probabilities are computed with regularised
+  incomplete gamma and erfc rather than <code>1 − cdf</code>, which underflows
+  to exactly zero in the tails where signal detection operates.</li>
+  <li>The build pipeline has a 25-test suite covering ingestion, narrative
+  reassembly, outcome decoding, age parsing, supplement detection and every
+  query path.</li>
+</ul>
+
+<h2 id="coverage">Coverage &amp; caveats</h2>
+<p>
+  The corpus spans 1991–2024, but the FDA device, narrative and problem-code
+  files in this build begin in <strong>2015</strong>. Reports before then exist
+  in the MDR master and carry valid event types and outcome codes, but no
+  product code, manufacturer, brand name, narrative or problem code. Any cohort
+  defined by those fields therefore contains no pre-2015 reports regardless of
+  the year slider, and the tool defaults to 2015 onward and warns when the range
+  is widened.
+</p>
+<p>The standing caveats, restated:</p>
+<ul>
+  <li>MAUDE is passive surveillance with no denominator of exposed devices.
+  Every percentage is a share of reports, not of patients or devices.</li>
+  <li>Reporting is incomplete, uneven between sources, and responsive to
+  publicity.</li>
+  <li>Reports are unverified and may be duplicated, amended or withdrawn; the
+  FDA revises the database retroactively, so record the data vintage.</li>
+  <li>Manufacturer names are free text and are not normalised, so concentration
+  measures understate reality.</li>
+  <li>Narratives in the browser tool are capped at 4,000 characters per report;
+  the complete multi-part text is available in the Research Edition.</li>
+</ul>
+
+<h2 id="corrections">Corrections history</h2>
+<p>
+  The current version corrects several defects present in the code used for the
+  original publication. These change numbers, and are recorded here because a
+  tool that silently changes its answers is not reproducible.
+</p>
+<ul>
+  <li><strong>Disproportionality comparator</strong> now excludes reports that
+  cannot carry a problem code. Previously every PRR was inflated by ~25%.</li>
+  <li><strong>Yates chi-square</strong> is computed on observed counts with the
+  correction clamped at zero. Previously the continuity-corrected cells were fed
+  in and the correction was unclamped, overstating χ² by 39–49% on sparse tables
+  and scoring perfectly null tables above zero.</li>
+  <li><strong>Mann-Kendall</strong> applies the tie correction that earlier
+  documentation claimed but the code omitted.</li>
+  <li><strong>PRR/ROR intervals</strong> use the exact 95% z rather than a
+  rounded 1.96.</li>
+  <li><strong>Information Component and FDR q-values</strong> were added; signal
+  detection previously rested on the EMA rule alone with no multiplicity
+  control.</li>
+</ul>
+
+<h2 id="refs">References</h2>
+<ol>
+  <li>U.S. FDA. <em>Manufacturer and User Facility Device Experience (MAUDE)
+  Database.</em></li>
+  <li>21 CFR § 803.3 — Definitions (death, serious injury, malfunction).</li>
+  <li>Wilson EB. Probable inference, the law of succession, and statistical
+  inference. <em>J Am Stat Assoc</em> 1927;22:209–12.</li>
+  <li>Agresti A, Coull BA. Approximate is better than “exact” for interval
+  estimation of binomial proportions. <em>Am Stat</em> 1998;52:119–26.</li>
+  <li>Newcombe RG. Interval estimation for the difference between independent
+  proportions. <em>Stat Med</em> 1998;17:873–90.</li>
+  <li>Evans SJ, Waller PC, Davis S. Use of proportional reporting ratios (PRRs)
+  for signal generation. <em>Pharmacoepidemiol Drug Saf</em> 2001;10:483–6.</li>
+  <li>Rothman KJ, Lanes S, Sacks ST. The reporting odds ratio and its
+  advantages. <em>Pharmacoepidemiol Drug Saf</em> 2004;13:519–23.</li>
+  <li>Bate A, Lindquist M, Edwards IR, et al. A Bayesian neural network method
+  for adverse drug reaction signal generation. <em>Eur J Clin Pharmacol</em>
+  1998;54:315–21.</li>
+  <li>Norén GN, Bate A, Orre R, Edwards IR. Extending the methods used to screen
+  the WHO drug safety database. <em>Stat Med</em> 2006;25:3740–57.</li>
+  <li>Benjamini Y, Hochberg Y. Controlling the false discovery rate.
+  <em>J R Stat Soc B</em> 1995;57:289–300.</li>
+  <li>Mann HB. Nonparametric tests against trend. <em>Econometrica</em>
+  1945;13:245–59.</li>
+  <li>Ensign LG, Cohen KB. A primer to the structure, content and linkage rules
+  of the MAUDE database. <em>eGEMs</em> 2017;5(1):12.</li>
+  <li>Porwal M. MaudeDash: an open analytic platform for the FDA MAUDE medical
+  device adverse event database. <em>Surg Neurol Int</em> 2026.
+  doi:10.25259/SNI_201_2026.</li>
+</ol>
+
+</div>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-legal">
+    <p><strong>MaudeDash is an independent research tool.</strong> Not
+    affiliated with, endorsed by, or reviewed by the U.S. Food and Drug
+    Administration. Not medical advice. MAUDE is passive surveillance; figures
+    describe reporting patterns, not device failure rates.</p>
+    <p>© <span id="year">2026</span> Moksha Porwal · MIT License ·
+      <a href="./">Home</a> · <a href="terms.html">Terms</a> ·
+      <a href="privacy.html">Privacy</a> ·
+      <a href="accessibility.html">Accessibility</a></p>
+  </div>
+</footer>
+<script src="assets/site.js" defer></script>
+</body>
+</html>

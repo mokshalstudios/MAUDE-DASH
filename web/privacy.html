@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy — MaudeDash</title>
+<meta name="description" content="MaudeDash privacy statement: no accounts, no cookies, no analytics, no tracking. Every query runs in your browser and nothing you search is transmitted.">
+<link rel="canonical" href="https://maudedash.com/privacy.html">
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<script src="assets/theme.js"></script>
+<link rel="stylesheet" href="assets/styles.css">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body class="site">
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <a class="brand" href="./">
+    <img class="brand-logo" src="assets/logo.svg" alt="" width="34" height="34">
+    <div class="brand-text">
+      <div class="brand-name">Maude<span class="dash">Dash</span></div>
+      <div class="brand-tag">FDA MAUDE Analytics</div>
+    </div>
+  </a>
+  <nav class="site-nav" aria-label="Main">
+    <a href="methods.html">Methods</a>
+    <a href="terms.html">Terms</a>
+    <a class="nav-cta" href="app.html">Open the tool</a>
+  </nav>
+</header>
+
+<main id="main" class="doc">
+<div class="wrap wrap-narrow">
+
+<h1>Privacy</h1>
+<p class="updated">Effective 30 July 2026.</p>
+
+<div class="note note-info">
+  <span class="note-icon">🔒</span>
+  <div><strong>MaudeDash has no accounts, no cookies, no analytics and no
+  tracking of any kind.</strong> Your searches, cohort definitions and results
+  never leave your browser, because there is no server to send them to — the
+  analysis engine runs inside the page.</div>
+</div>
+
+<h2>Why there is so little to disclose</h2>
+<p>
+  Most web tools work by sending your query to a server that runs it and sends
+  results back. That server necessarily sees everything you ask. MaudeDash is
+  built the other way round: the site serves static data files, and a database
+  engine compiled to WebAssembly runs <em>inside your browser tab</em> and reads
+  the portions of those files it needs.
+</p>
+<p>
+  The practical consequence is that the operator of this site cannot see what
+  device you looked up, what manufacturer you investigated, what narrative text
+  you searched for, or what results you got. That information is never
+  transmitted. It exists only in your computer's memory and disappears when you
+  close the tab.
+</p>
+
+<h2>What is stored on your device</h2>
+<ul>
+  <li><strong>A theme preference.</strong> If you use the light/dark toggle, the
+  choice is saved in your browser's local storage under
+  <code>maudedash-theme</code>. It contains the single word “light” or “dark”.
+  It is never transmitted. Clearing your browser data removes it.</li>
+  <li><strong>Ordinary browser caching.</strong> The data files are marked
+  immutable so your browser can reuse them between visits instead of
+  re-downloading. This is standard HTTP caching, not a tracking mechanism, and
+  is cleared with your browser cache.</li>
+</ul>
+<p>
+  There are no cookies. Because no cookies or tracking technologies are used, no
+  consent banner is required or shown.
+</p>
+
+<h2>What the web server records</h2>
+<p>
+  The site is hosted on ordinary shared web hosting, which keeps standard access
+  logs as every web server does. A log entry records the IP address, timestamp,
+  requested file, HTTP status, referring page and browser user-agent string.
+</p>
+<p>
+  These logs record <em>which files</em> were fetched — for example that a
+  particular Parquet file was requested — but not what you were searching for,
+  because the search never happens on the server. Logs are used only to keep the
+  site running and to detect abuse such as automated bulk downloading. They are
+  retained for a short period by the hosting provider under its own policy and
+  are not sold, shared or used for advertising or profiling.
+</p>
+<p>
+  Aggregate visit counts derived from those server logs may be used to describe
+  the tool's reach — for example in a grant report or an academic CV. This uses
+  the same logs described above; no additional collection takes place and no
+  individual is identified.
+</p>
+
+<h2>Third parties</h2>
+<p>
+  There is no advertising, no analytics provider, no social media widget, no
+  embedded font service and no content delivery network for your data.
+</p>
+<p>
+  Depending on how this deployment is configured, the WebAssembly database
+  engine and the charting library may be loaded from the public jsDelivr CDN, in
+  which case your browser makes a request to that CDN for those two static
+  files. No MaudeDash data or query information is included in that request.
+  This dependency can be removed entirely by self-hosting those files, and the
+  published deployment guide recommends doing so.
+</p>
+
+<h2>Personal data in the underlying database</h2>
+<p>
+  MaudeDash analyses adverse event reports released publicly by the FDA. The
+  FDA redacts those records before release under exemptions (b)(4) and (b)(6) of
+  the Freedom of Information Act. MaudeDash does not add, enrich or de-anonymise
+  anything; it reformats what the FDA published.
+</p>
+<p>
+  Redaction is imperfect, and narrative free text occasionally retains
+  incidental detail. Attempting to re-identify any individual is prohibited by
+  the <a href="terms.html">terms of use</a>. If you believe identifying
+  information is present, please report it to the FDA, which controls the source
+  record, and
+  <a href="https://github.com/mokshalstudios/MAUDE-DASH/issues" rel="noopener">notify the project</a>
+  so the affected extract can be withheld.
+</p>
+
+<h2>Children</h2>
+<p>
+  MaudeDash is a professional research tool and is not directed at children. No
+  personal information is knowingly collected from anyone, of any age.
+</p>
+
+<h2>Your rights</h2>
+<p>
+  Because no personal data is collected, there is generally nothing to access,
+  correct, export or erase. If you are in a jurisdiction with statutory data
+  rights — such as the EU or UK GDPR, or the CCPA — and you believe your
+  personal data has nonetheless been processed by this site, contact the project
+  and it will be addressed. Server logs are the only category of data that could
+  plausibly relate to you, and they are held by the hosting provider under its
+  own retention policy.
+</p>
+
+<h2>Changes</h2>
+<p>
+  If this statement changes, the effective date above will change with it. A
+  material change — for example the introduction of any analytics — would be
+  announced on the home page and in the source repository. There is no intention
+  to introduce one.
+</p>
+
+<h2>Contact</h2>
+<p>
+  Privacy questions and security reports:
+  <a href="https://github.com/mokshalstudios/MAUDE-DASH/issues" rel="noopener">open an issue</a>,
+  or see <a href="/.well-known/security.txt">security.txt</a>.
+</p>
+
+</div>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-legal">
+    <p><strong>MaudeDash is an independent research tool.</strong> Not
+    affiliated with, endorsed by, or reviewed by the U.S. Food and Drug
+    Administration. Not medical advice.</p>
+    <p>© <span id="year">2026</span> Moksha Porwal · MIT License ·
+      <a href="./">Home</a> · <a href="terms.html">Terms</a> ·
+      <a href="accessibility.html">Accessibility</a> ·
+      <a href="methods.html">Methods</a></p>
+  </div>
+</footer>
+<script src="assets/site.js" defer></script>
+</body>
+</html>
