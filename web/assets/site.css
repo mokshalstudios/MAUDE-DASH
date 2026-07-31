@@ -263,3 +263,49 @@ a.brand:hover { text-decoration: none; }
   .site-header, .site-nav, .hero-cta, .cta-band, .nav-toggle { display: none !important; }
   .band { page-break-inside: avoid; }
 }
+
+/* ----- editions page ----- */
+
+.edition-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 28px 0 40px;
+}
+@media (max-width: 880px) { .edition-grid { grid-template-columns: 1fr; } }
+
+.edition {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 22px; box-shadow: var(--shadow);
+  display: flex; flex-direction: column;
+}
+.edition-tag {
+  display: inline-block; align-self: flex-start;
+  padding: 3px 10px; margin-bottom: 10px;
+  font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .06em; border-radius: 20px;
+  background: var(--brand-100); color: var(--brand-700);
+}
+.edition-tag.alt { background: var(--accent-100); color: var(--accent-600); }
+:root[data-theme="dark"] .edition-tag { color: var(--brand-500); }
+:root[data-theme="dark"] .edition-tag.alt { color: var(--accent-500); }
+
+.edition h2 {
+  font-size: 20px; margin: 0 0 8px; padding: 0; border: none; color: var(--text);
+}
+.edition-lede {
+  font-size: 14px; line-height: 1.62; color: var(--text-2); margin-bottom: 4px;
+}
+.edition h3 {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .07em; color: var(--text-3); margin: 18px 0 7px;
+}
+.edition ul { margin: 0; padding-left: 20px; }
+.edition li { font-size: 13.5px; line-height: 1.55; color: var(--text-2); margin-bottom: 5px; }
+.edition .req { font-size: 13px; color: var(--text-2); line-height: 1.55; }
+.edition .btn { margin-top: auto; align-self: flex-start; }
+.edition .btn:first-of-type { margin-top: 20px; }
+
+.doc pre {
+  padding: 12px 14px; overflow-x: auto; margin: 10px 0 18px;
+  background: var(--surface-3); border: 1px solid var(--border);
+  border-radius: var(--radius); font-size: 12.5px; line-height: 1.6;
+}
+.doc pre code { background: none; padding: 0; font-size: inherit; }

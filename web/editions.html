@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Editions — MaudeDash</title>
+<meta name="description" content="MaudeDash comes in two editions: a browser tool that needs no installation, and a downloadable Research Edition that runs against the complete FDA MAUDE corpus with untruncated narratives. How to get and run each.">
+<link rel="canonical" href="https://maudedash.com/editions.html">
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<script src="assets/theme.js"></script>
+<link rel="stylesheet" href="assets/styles.css">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body class="site">
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <a class="brand" href="./">
+    <img class="brand-logo" src="assets/logo.svg" alt="" width="34" height="34">
+    <div class="brand-text">
+      <div class="brand-name">Maude<span class="dash">Dash</span></div>
+      <div class="brand-tag">FDA MAUDE Analytics</div>
+    </div>
+  </a>
+  <nav class="site-nav" aria-label="Main">
+    <a href="editions.html" aria-current="page">Editions</a>
+    <a href="methods.html">Methods</a>
+    <a href="terms.html">Terms</a>
+    <a href="privacy.html">Privacy</a>
+    <a class="nav-cta" href="app.html">Open the tool</a>
+  </nav>
+  <button class="icon-btn nav-toggle" id="nav-toggle" aria-label="Menu" aria-expanded="false">☰</button>
+</header>
+
+<main id="main" class="doc">
+<div class="wrap">
+
+<h1>Editions</h1>
+<p class="updated">MaudeDash comes in two forms. Both run the same analyses and
+the same statistics; they differ in what data they can reach and what you have
+to install.</p>
+
+<div class="edition-grid">
+
+  <!-- ============================ web tier ============================ -->
+  <article class="edition">
+    <div class="edition-tag">No installation</div>
+    <h2>Browser Edition</h2>
+    <p class="edition-lede">
+      The tool at <strong>maudedash.com</strong>. Open it and start querying.
+      A database engine compiled to WebAssembly runs inside the page and reads a
+      1.4 GB Parquet extract of the corpus over the network, fetching only the
+      parts each query needs.
+    </p>
+
+    <h3>What you get</h3>
+    <ul>
+      <li>All 20,746,963 reports, 1991–2024</li>
+      <li>Every analysis: harm rates with confidence intervals, subgroup forest
+      plots, trend tests, disproportionality with both frequentist and Bayesian
+      signal criteria</li>
+      <li>Event narratives to 4,000 characters per report</li>
+      <li>CSV export, shareable cohort URLs, generated STROBE methods</li>
+    </ul>
+
+    <h3>Limits</h3>
+    <ul>
+      <li>Narratives are capped at 4,000 characters. That covers 99.67% of
+      source text segments, but not the complete multi-part text.</li>
+      <li>Analysis runs in a browser tab, so very large cohorts are capped to
+      stay within browser memory.</li>
+    </ul>
+
+    <h3>Requirements</h3>
+    <p class="req">Any current browser. Roughly 18 MB on first visit, about
+    half that on return visits.</p>
+
+    <a class="btn btn-lg" href="app.html" style="width:auto">Open the tool</a>
+  </article>
+
+  <!-- ========================= research edition ======================== -->
+  <article class="edition">
+    <div class="edition-tag alt">Free download</div>
+    <h2>Research Edition</h2>
+    <p class="edition-lede">
+      A Streamlit application you run on your own machine against the complete
+      corpus you build from the FDA's own files. Use this when you need the
+      untruncated narratives, unlimited cohort sizes, or a fully auditable
+      pipeline from FDA source file to published figure.
+    </p>
+
+    <h3>What it adds over the browser</h3>
+    <ul>
+      <li><strong>Complete multi-part narratives</strong>, not truncated</li>
+      <li><strong>No cohort size limits</strong> — export the full filtered
+      population rather than a capped extract</li>
+      <li><strong>The whole build pipeline</strong>: ingestion, narrative
+      reassembly, outcome decoding, validation and a 25-test suite</li>
+      <li><strong>Independent verification</strong> — rebuild the corpus
+      yourself and confirm every number this site reports</li>
+    </ul>
+
+    <h3>Requirements</h3>
+    <p class="req">Python 3.10+, roughly 120 GB free disk for the raw FDA files
+    and the built database, and 8 GB RAM or more. The full build takes a few
+    hours, mostly unattended, and is resumable.</p>
+
+    <a class="btn btn-lg btn-secondary" href="https://github.com/mokshalstudios/MAUDE-DASH"
+       rel="noopener" style="width:auto">Get it on GitHub</a>
+  </article>
+</div>
+
+<h2 id="install">Installing the Research Edition</h2>
+<p>Four steps. The long one is step 3, and it only happens once per FDA release.</p>
+
+<h3>1. Get the code</h3>
+<pre><code>git clone https://github.com/mokshalstudios/MAUDE-DASH.git
+cd MAUDE-DASH
+pip install -r requirements.txt</code></pre>
+
+<h3>2. Download the FDA source files</h3>
+<p>
+  From the FDA's
+  <a href="https://www.fda.gov/medical-devices/medical-device-reporting-mdr-how-report-medical-device-problems/mdr-data-files" rel="noopener">MDR
+  data files</a> page, take the MDR master, device, patient, foitext,
+  foidevproblem and patientproblemcode archives, and unzip them all into one
+  folder. That is roughly 40 GB of pipe-delimited text.
+</p>
+
+<h3>3. Build the database</h3>
+<pre><code>python research-edition/maude_build.py --raw-dir /path/to/fda/files \
+    --db maude_final.duckdb --skip-fts</code></pre>
+<p>
+  A few hours on the full corpus. The build is <strong>resumable</strong> — if
+  it is interrupted, re-run the same command and it continues from the last
+  completed step rather than starting over. <code>--skip-fts</code> omits the
+  full-text index, which the dashboard does not use and which roughly doubles
+  build time.
+</p>
+
+<h3>4. Run it</h3>
+<pre><code>streamlit run research-edition/maudedash_app.py -- --db maude_final.duckdb</code></pre>
+
+<p>Confirm the install with the test suite, which should report 25 passing:</p>
+<pre><code>python research-edition/test_maude.py</code></pre>
+
+<h2 id="publish">Publishing your own instance</h2>
+<p>
+  The repository also contains everything needed to host a browser edition of
+  your own — useful if you want a tool over a different cohort, a newer data
+  vintage, or your own institution's branding. It is static files, so any web
+  host will serve it.
+</p>
+<pre><code>python packaging/maude_export_web.py --db maude_final.duckdb --out web/data
+python packaging/build_search_index.py --db maude_final.duckdb --out web/data
+python packaging/vendor_assets.py
+python packaging/serve_local.py        # preview at http://127.0.0.1:8777</code></pre>
+<p>
+  <code>deploy/DREAMHOST.md</code> in the repository documents the full upload
+  procedure, the Apache configuration required for HTTP range requests, and the
+  measured bandwidth a deployment actually consumes.
+</p>
+
+<h2 id="which">Which one do I need?</h2>
+<div class="table-wrap">
+<table>
+<thead><tr><th>If you want to…</th><th>Use</th></tr></thead>
+<tbody>
+<tr><td>Look up a device and see harm rates, trends or signals</td><td>Browser Edition</td></tr>
+<tr><td>Produce a figure or a methods paragraph for a manuscript</td><td>Browser Edition</td></tr>
+<tr><td>Read complete, untruncated event narratives</td><td>Research Edition</td></tr>
+<tr><td>Export an entire filtered population without a row cap</td><td>Research Edition</td></tr>
+<tr><td>Verify a published number independently, from FDA sources</td><td>Research Edition</td></tr>
+<tr><td>Work offline, or on data the FDA has since revised</td><td>Research Edition</td></tr>
+<tr><td>Host your own instance for a lab or institution</td><td>Either — see above</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="note note-info" style="margin-top:22px">
+  <span class="note-icon">ⓘ</span>
+  <div><strong>Both editions compute identically.</strong> The statistical
+  engine exists twice — in Python for the Research Edition and JavaScript for
+  the browser — and the two are cross-validated against each other and against
+  SciPy and statsmodels on every function, to 1e-9 or better. A number from one
+  is a number from the other. See <a href="methods.html#validation">Methods →
+  Validation</a>.</div>
+</div>
+
+<div class="note note-caveat">
+  <span class="note-icon">!</span>
+  <div>MAUDE is passive surveillance with no denominator of exposed devices.
+  Figures from either edition are proportions of <em>reports</em>, never
+  incidence or device failure rates. See
+  <a href="methods.html#coverage">Methods → Coverage &amp; caveats</a>.</div>
+</div>
+
+</div>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-legal">
+    <p><strong>MaudeDash is an independent research tool.</strong> Not
+    affiliated with, endorsed by, or reviewed by the U.S. Food and Drug
+    Administration. Not medical advice. MAUDE is passive surveillance; figures
+    describe reporting patterns, not device failure rates.</p>
+    <p>© <span id="year">2026</span> Moksha Porwal · MIT License ·
+      <a href="./">Home</a> · <a href="editions.html">Editions</a> ·
+      <a href="methods.html">Methods</a> ·
+      <a href="terms.html">Terms</a> · <a href="privacy.html">Privacy</a> ·
+      <a href="accessibility.html">Accessibility</a></p>
+  </div>
+</footer>
+<script src="assets/site.js" defer></script>
+</body>
+</html>

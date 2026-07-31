@@ -73,6 +73,7 @@
   <nav class="site-nav" aria-label="Main">
     <a href="#what">What it is</a>
     <a href="#how">How it works</a>
+    <a href="#editions">Editions</a>
     <a href="methods.html">Methods</a>
     <a href="#limits">Limitations</a>
     <a href="#cite">Cite</a>
@@ -237,6 +238,45 @@
     </div>
   </section>
 
+  <!-- ========================== editions ========================== -->
+  <section id="editions" class="band">
+    <div class="wrap">
+      <h2>Two editions</h2>
+      <p class="section-lede">
+        The tool on this site is the one most people want. A downloadable
+        edition exists for work that needs the complete corpus on your own
+        machine — and so that anyone can verify these numbers independently.
+      </p>
+
+      <div class="feature-grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
+        <article class="feature">
+          <h3>Browser Edition — nothing to install</h3>
+          <p>Open it and query. All 20.7 million reports, every analysis,
+          narratives to 4,000 characters, CSV export and shareable cohort URLs.
+          Runs entirely in your browser; nothing you search is transmitted.</p>
+          <p style="margin-top:12px"><a class="btn" href="app.html"
+             style="width:auto;padding:7px 14px;font-size:13px">Open the tool</a></p>
+        </article>
+        <article class="feature">
+          <h3>Research Edition — free download</h3>
+          <p>A Streamlit application you run locally against the full corpus
+          built from the FDA's own files. Adds untruncated multi-part
+          narratives, unlimited cohort exports, and the entire build pipeline
+          with its test suite — so any figure here can be reproduced from
+          source.</p>
+          <p style="margin-top:12px"><a class="btn btn-secondary" href="editions.html"
+             style="width:auto;padding:7px 14px;font-size:13px">How to get it</a></p>
+        </article>
+      </div>
+
+      <p class="fineprint" style="margin-top:20px">
+        Both compute identically — the statistical engine exists in Python and
+        in JavaScript, cross-validated against SciPy on every function.
+        <a href="editions.html">Compare the editions in detail →</a>
+      </p>
+    </div>
+  </section>
+
   <!-- =========================== limits =========================== -->
   <section id="limits" class="band">
     <div class="wrap wrap-narrow">
@@ -337,6 +377,7 @@
     </div>
     <nav aria-label="Documentation">
       <h4>Documentation</h4>
+      <a href="editions.html">Editions &amp; downloads</a>
       <a href="methods.html">Methods &amp; statistics</a>
       <a href="app.html">The tool</a>
       <a href="https://github.com/mokshalstudios/MAUDE-DASH" rel="noopener">Source code</a>
